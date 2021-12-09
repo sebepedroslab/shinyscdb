@@ -37,6 +37,8 @@ loadServer <- function(id, config_file="config.yaml", config_id) {
   )
 }
 
+#' User interface for atlas introduction
+#' @export
 introUI <- function(id, label="Intro") {
   ns <- NS(id)
 
@@ -67,6 +69,8 @@ introUI <- function(id, label="Intro") {
   )
 }
 
+#' Server logic for atlas introduction
+#' @export
 introServer <- function(id, config_file="config.yaml", config_id) {
   shiny::moduleServer(
     id,
@@ -137,6 +141,8 @@ introServer <- function(id, config_file="config.yaml", config_id) {
   )
 }
 
+#' User interface for visualizing single gene expression
+#' @export
 singleGeneUI <- function(id, label="Single gene expression") {
   ns <- NS(id)
 
@@ -176,6 +182,8 @@ singleGeneUI <- function(id, label="Single gene expression") {
 
 }
 
+#' Server logic for visualizing single gene expression
+#' @export
 singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
 
   shiny::moduleServer(
@@ -248,6 +256,8 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
 
 }
 
+#' User interface for visualizing multiple gene expression
+#' @export
 multiGeneUI <- function(id, label="Multi gene expression") {
   ns <- NS(id)
 
@@ -330,6 +340,8 @@ multiGeneUI <- function(id, label="Multi gene expression") {
 
 }
 
+#' Server logic for visualizing multiple gene expression
+#' @export
 multiGeneServer <- function(id, config_file="config.yaml", config_id) {
 
   shiny::moduleServer(
@@ -447,6 +459,8 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
     })
 }
 
+#' User interface for summarizing expression in group of metacells
+#' @export
 summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
   ns <- NS(id)
 
@@ -541,6 +555,8 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
   )
 }
 
+#' Server logic for summarizing expression in group of metacells
+#' @export
 summaryServer <- function(id, config_file="config.yaml", config_id) {
   shiny::moduleServer(
     id,
@@ -646,51 +662,3 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
   )
 
 }
-
-# ct_legend_file <- "cell_type_legend.png"
-# ct_legend_file_h <- "cell_type_legend_horizontal.png"
-#
-# ct_legend_filepath <- file.path(INPUT_DIR, ct_legend_file)
-# ct_legend_height <- length(cell_type_palette) * 50
-# ct_legend_width <- 600
-# ct_legend_horizontal_filepath <- file.path(INPUT_DIR, ct_legend_file_h)
-# ct_legend_height <- 600 #length(cell_type_palette) * 40
-# ct_legend_width <- 1800
-#
-# if (!any(grepl("cell_type_legend", list.files(INPUT_DIR,pattern = "png")))) {
-#
-#   # vertical legend
-#   png(ct_legend_filepath, width = ct_legend_width, height = ct_legend_height, res=100)
-#   plot(NULL,xaxt='n',yaxt='n',bty='n',ylab='',xlab='',xlim=0:1,ylim=0:1)
-#   legend(
-#     "topleft",legend=names(cell_type_palette),col=cell_type_palette,
-#     bty = 'n', pch=15, pt.cex=3, cex=1.5, horiz=FALSE
-#   )
-#   dev.off()
-#
-#   # horizontal legend
-#   png(ct_legend_horizontal_filepath, width = ct_legend_width, height = ct_legend_height, res=100)
-#   plot(NULL,xaxt='n',yaxt='n',bty='n',ylab='',xlab='',xlim=0:1,ylim=0:1)
-#   legend(
-#     "topleft",
-#     legend=stringr::str_replace_all(names(cell_type_palette),"_"," "),
-#     col=cell_type_palette,
-#     bty='n', pch=15, pt.cex=3.5, cex=1.5, horiz=FALSE, ncol=5
-#   )
-#   dev.off()
-#
-# }
-#
-# # cell type legend
-# output$plot_ct_legend <- renderImage({
-#   list(src = ct_legend_filepath, alt="Cell type legend", height = 800)
-# }, deleteFile = FALSE)
-#
-# # cell type legend hotizontal
-# output$plot_ct_legend_horizontal <- renderImage({
-#   width  <- pmin(session$clientData$output_plot_ct_legend_horizontal_width, 1000)
-#   list(
-#     src = ct_legend_horizontal_filepath, alt="Cell type legend",
-#     width = width
-#   )
-# }, deleteFile = FALSE)

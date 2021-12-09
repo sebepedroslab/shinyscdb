@@ -1,4 +1,4 @@
-# (1) loading datasets and general tools ---------------------------------------
+# Exported functions -----------------------------------------------------------
 
 #' Import gene annotations
 #'
@@ -10,6 +10,7 @@
 #' @return data.table with the selected columns and additional column containing
 #'  concatenated values from selected columns (used for table look-up)
 #'
+#' @export
 fread_gene_annotation <- function(
   file,
   select = 1:3,
@@ -32,6 +33,8 @@ fread_gene_annotation <- function(
 #' @param file path to file to load
 #'
 #' @return daata.table with the following columns: mc, cell_type, color
+#'
+#' @export
 fread_cell_annotation <- function(file) {
 
   CELL_ANNT <- data.table::fread(file = file, sep = "\t", fill = TRUE, select=1:3)
@@ -40,8 +43,9 @@ fread_cell_annotation <- function(file) {
   return(CELL_ANNT)
 }
 
+# Helper functions -------------------------------------------------------------
 
-# reduce vector of metacells
+#' Reduce vector of metacells
 red_mc_vector <- function(x,range_sep=":") {
   all_mcs <- sort(as.integer(x))
   all_ir <- IRanges::IRanges(start = all_mcs, end = all_mcs)
@@ -59,7 +63,7 @@ red_mc_vector <- function(x,range_sep=":") {
   paste(outv,collapse=",")
 }
 
-# summarize cell annotation
+#' Summarize cell annotation
 summarize_cell_annotation <- function(annt) {
 
   tanns <- tapply(annt$mc, annt$cell_type, red_mc_vector)
@@ -79,7 +83,7 @@ summarize_cell_annotation <- function(annt) {
     knitr::kable(escape = FALSE, align = "c")
 }
 
-# (2) plotting tools ----------------------------------------------------------------------------------
+# Plotting functions -----------------------------------------------------------
 
 #' Plot an expression barplots of a gene
 #' @param nmat mc_fp matrix
@@ -428,7 +432,7 @@ mc_2d_plot = function(
   }
 }
 
-
+#' Select genes for heatmap
 genes_select_dt <- function(sterm, nmat, annt) {
   grep1 <- grep(sterm,annt[[1]],ignore.case=TRUE)
   grep2 <- grep(sterm,annt[[2]],ignore.case=TRUE)
