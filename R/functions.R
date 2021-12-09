@@ -9,12 +9,13 @@
 #'
 #' @return data.table with the selected columns and additional column containing
 #'  concatenated values from selected columns (used for table look-up)
-#'
+#' @importFrom data.table :=
 #' @export
 fread_gene_annotation <- function(
   file,
   select = 1:3,
-  col.names = c("gene_id","PFAM domain","best human BLAST hit")
+  col.names = c("gene_id","PFAM domain","best human BLAST hit"),
+  search.column = NULL
 ) {
   GENE_ANNT <- data.table::fread(
     file = file,
@@ -24,7 +25,9 @@ fread_gene_annotation <- function(
     select = select,
     col.names = col.names
   )
-  GENE_ANNT[,search_id:=do.call(paste,.SD),.SDcols=colnames]
+  if (!is.null(search.column)) {
+    GENE_ANNT[,search_id:=do.call(paste,.SD),.SDcols=search.column]
+  }
   return(GENE_ANNT)
 }
 
@@ -73,14 +76,13 @@ summarize_cell_annotation <- function(annt) {
     metacells = tanns[unique(annt$cell_type)],
     cols = annt$color[match(unique(annt$cell_type),annt$cell_type)]
   )
-  dt[,colshex := col2hex(cols)]
-  dt %>%
-    mutate( metacells = cell_spec(
+  dt[, colshex := col2hex(cols)]
+  dt[, metacells := cell_spec(
       metacells, "html", color = "white", align = "c",
       background = factor(`cell type`, dt$`cell type`, dt$colshex)
-    )) %>%
-    select(c("cell type","metacells")) %>%
-    knitr::kable(escape = FALSE, align = "c")
+  )]
+  dtt <- dt[,c("cell type","metacells")]
+  knitr::kable(dtt, escape = FALSE, align = "c")
 }
 
 # Plotting functions -----------------------------------------------------------

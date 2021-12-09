@@ -9,7 +9,10 @@ loadServer <- function(id, config_file="config.yaml", config_id) {
     function(input, output, session) {
 
       iconf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- conf[['default']]$data_dir
+      INPUT_DIR <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id]]$data_subdir
+      )
 
       mc_fp <- conf[[config_id]]$mcfp_file
       umi_frac <- conf[[config_id]]$umifrac_file
@@ -78,7 +81,10 @@ introServer <- function(id, config_file="config.yaml", config_id) {
     function(input, output, session) {
 
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- conf[['default']]$data_dir
+      INPUT_DIR <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id]]$data_subdir
+      )
 
       raw_counts_sc <- conf[[config_id]]$umicountsc_file
       mc2d_obj <-  conf[[config_id]]$mc2d_file
@@ -192,7 +198,10 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
     function(input, output, session) {
 
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- conf[['default']]$data_dir
+      INPUT_DIR <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id]]$data_subdir
+      )
 
       mc_fp <- conf[[config_id]]$mcfp_file
       raw_counts <- conf[[config_id]]$umicount_file
@@ -350,7 +359,10 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
     function(input, output, session) {
 
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- conf[['default']]$data_dir
+      INPUT_DIR <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id]]$data_subdir
+      )
 
       mc_fp <- conf[[config_id]]$mcfp_file
       cell_type_annotation <- conf[[config_id]]$ann_file
@@ -564,7 +576,10 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
     function(input, output, session) {
 
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- conf[['default']]$data_dir
+      INPUT_DIR <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id]]$data_subdir
+      )
 
       mc_fp <- conf[[config_id]]$mcfp_file
       raw_counts <- conf[[config_id]]$umicount_file

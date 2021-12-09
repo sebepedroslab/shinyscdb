@@ -7,7 +7,8 @@
 fread_gene_annotation(
   file,
   select = 1:3,
-  col.names = c("gene_id", "PFAM domain", "best human BLAST hit")
+  col.names = c("gene_id", "PFAM domain", "best human BLAST hit"),
+  search.column = NULL
 )
 }
 \arguments{
