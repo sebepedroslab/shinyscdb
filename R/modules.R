@@ -1,45 +1,3 @@
-
-loadUI <- function(id, label) {
-  ns <- shiny::NS(id)
-}
-
-loadServer <- function(id, config_file="config.yaml", config_id) {
-  shiny::moduleServer(
-    id,
-    function(input, output, session) {
-
-      iconf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
-      INPUT_DIR <- file.path(
-        conf[['default']]$data_dir,
-        conf[[config_id]]$data_subdir
-      )
-
-      mc_fp <- conf[[config_id]]$mcfp_file
-      umi_frac <- conf[[config_id]]$umifrac_file
-      raw_counts <- conf[[config_id]]$umicount_file
-      raw_counts_sc <- conf[[config_id]]$umicountsc_file
-      mc2d_obj <-  conf[[config_id]]$mc2d_file
-      cell_type_annotation <- conf[[config_id]]$ann_file
-
-
-      MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
-      UMIFRAC <- readRDS(file = file.path(INPUT_DIR, umi_frac))
-      UMICOUNTS <- readRDS(file = file.path(INPUT_DIR, raw_counts))
-      UMICOUNTSC <- readRDS(file = file.path(INPUT_DIR, raw_counts_sc))
-      MC2D <- readRDS(file = file.path(INPUT_DIR, mc2d_obj))
-      CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
-
-      return(reactive({
-        MCFP
-        UMIFRAC
-        UMICOUNTS
-        UMICOUNTSSC
-        CELL_ANNT
-      }))
-    }
-  )
-}
-
 #' User interface for atlas introduction
 #' @export
 introUI <- function(id, label="Intro") {
@@ -48,11 +6,11 @@ introUI <- function(id, label="Intro") {
   shiny::tagList(
     shiny::fluidRow(
       shinydashboard::box(
-        title="Metacell 2D projection", width = 8, height = 800, solidHeader = TRUE,
-        shiny::plotOutput(ns("plot_2d_proj"), height = 700)
+        title="Metacell 2D projection", width = 8, height = 1000, solidHeader = TRUE,
+        shiny::plotOutput(ns("plot_2d_proj"), height = 800)
       ),
       shinydashboard::box(
-        title = "Cell type annotation", width = 4, height = 800, solidHeader = TRUE,
+        title = "Cell type annotation", width = 4, height = 1000, solidHeader = TRUE,
         tableOutput(ns("cell_annot_table"))
       )
     ),
@@ -101,26 +59,11 @@ introServer <- function(id, config_file="config.yaml", config_id) {
 
       plot_expression_filepath <- file.path(INPUT_DIR, gene_expression_plot)
 
-      # expression heatmap
-      # output$plot_expression <- renderImage({
-      #   dims_img <- dim(png::readPNG(plot_expression_filepath))
-      #   height_img <- as.integer(dims_img[1])
-      #   width_img  <- as.integer(dims_img[2])
-      #   ratio <- height_img/width_img
-      #   width  <- pmin(width_img,1200)
-      #   height <- width*ratio
-      #   list(
-      #     src = plot_expression_filepath, alt="Expression heatmap",
-      #     width = width, height = height
-      #   )
-      # }, deleteFile = FALSE)
-
       clust_col <- structure(CELL_ANNT[[3]], names=CELL_ANNT[[1]])
       output$plot_expression <- shiny::renderPlot(
-        #scp_plot_cmod_markers_sc(marker_data_list = MARKER_LIST, mcsc = CELLMC, umat = UMICOUNTSC, clust_col=clust_col)
         scp_plot_cmod_markers_mc(
           marker_data_list = MARKER_LIST, clust_col=clust_col, clust_anno_size = unit(3,"mm"),
-          show_mc_names=TRUE,  mc_font_size=6, show_gene_names=TRUE, gene_font_size=6
+          show_mc_names=FALSE,  mc_font_size=6, show_gene_names=TRUE, gene_font_size=6
         ),
         height = pmin(length(MARKER_LIST$genes)*10, 2800)
       )
@@ -130,11 +73,11 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         mc_2d_plot(MC2D,CELLMC,CELL_ANNT),
         height = function() {
           height = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
-          pmin(height, 700)
+          pmin(height, 900)
         },
         width = function() {
           width = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
-          pmin(width, 700)
+          pmin(width, 900)
         }
       )
       output$cell_annot_table <- function() {
@@ -209,6 +152,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
       raw_counts_sc <- conf[[config_id]]$umicountsc_file
       mc2d_obj <-  conf[[config_id]]$mc2d_file
       cell_type_annotation <- conf[[config_id]]$ann_file
+      gene_annotation <-  conf[[config_id]]$gene_annot_file
 
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       UMICOUNTS <- readRDS(file = file.path(INPUT_DIR, raw_counts))
@@ -217,6 +161,12 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
       MC2D <- readRDS(file = file.path(INPUT_DIR, mc2d_obj))
       CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
       ALL_GENES <- rownames(MCFP)
+      GENE_ANNT <- fread_gene_annotation(
+        file = file.path(INPUT_DIR, gene_annotation),
+        select = c(1:3),
+        col.names = c("gene_id","gene name","PFAM domain"),
+        search.column = c("gene_id","gene name","PFAM domain")
+      )
 
       updateSelectizeInput(
         session, "search_id",
@@ -366,10 +316,17 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
 
       mc_fp <- conf[[config_id]]$mcfp_file
       cell_type_annotation <- conf[[config_id]]$ann_file
+      gene_annotation <-  conf[[config_id]]$gene_annot_file
 
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
       ALL_GENES <- rownames(MCFP)
+      GENE_ANNT <- fread_gene_annotation(
+        file = file.path(INPUT_DIR, gene_annotation),
+        select = c(1:3),
+        col.names = c("gene_id","gene name","PFAM domain"),
+        search.column = c("gene_id","gene name","PFAM domain")
+      )
 
       # Select genes
       genes_dt <- reactive(
@@ -584,10 +541,23 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
       mc_fp <- conf[[config_id]]$mcfp_file
       raw_counts <- conf[[config_id]]$umicount_file
       cell_type_annotation <- conf[[config_id]]$ann_file
+      gene_annotation <-  conf[[config_id]]$gene_annot_file
+      tfs_annotation <-  conf[[config_id]]$tf_annot_file
 
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       UMICOUNTS <- readRDS(file = file.path(INPUT_DIR, raw_counts))
       CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
+      GENE_ANNT <- fread_gene_annotation(
+        file = file.path(INPUT_DIR, gene_annotation),
+        select = c(1:3),
+        col.names = c("gene_id","gene name","PFAM domain"),
+        search.column = c("gene_id","gene name","PFAM domain")
+      )
+      TF_ANNT <- fread_gene_annotation(
+        file = file.path(INPUT_DIR, tfs_annotation),
+        select = c(1),
+        col.names=c("gene_id")
+      )
 
       mcinputdt <- eventReactive(
         eventExpr = {

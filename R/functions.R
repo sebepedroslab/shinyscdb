@@ -780,8 +780,8 @@ scp_plot_cmod_markers_mc <- function(
     }
     column_col_ha = ComplexHeatmap::HeatmapAnnotation(
       which = "column",
-      'cluster' = colnames(mat1),
-      col = list('cluster' = clust_col),
+      'cell type' = colnames(mat1),
+      col = list('cell type' = clust_col),
       border = TRUE,
       simple_anno_size = clust_anno_size,
       height = unit(1,"mm"),
@@ -854,6 +854,10 @@ scp_plot_cmod_markers_mc <- function(
     bottom_annotation = bottom_column_ha,
     column_names_gp = gpar(fontsize = mc_font_size),
     show_heatmap_legend = show_heatmap_legend,
+    heatmap_legend_param = list(
+      legend_height = unit(4, "cm"),
+      border = print_border
+    ),
     border = print_border
   )
 
