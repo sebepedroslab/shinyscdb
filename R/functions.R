@@ -92,7 +92,7 @@ summarize_cell_annotation <- function(annt) {
 #' @param umat sc UMI matrix
 sg_plot  <- function(
   nmat, umat, cttable, gid=NULL, sid=NULL,
-  mdnorm, annt, ctpalette=NULL
+  mdnorm, annt, ctpalette=NULL, mc_label_size=9
 ){
   # selected gene
   if (all(is.null(gid),is.null(sid)))
@@ -148,7 +148,7 @@ sg_plot  <- function(
       legend.position="none",
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
-      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=9),
+      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
       text = element_text(size=18)
     )
 
@@ -174,7 +174,7 @@ sg_plot  <- function(
       legend.position="bottom",
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
-      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=9),
+      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
       text = element_text(size=18)
     )
   ggp <- egg::ggarrange(gp_umi_frac, gp_log_frac, nrow=2, ncol=1)
@@ -231,7 +231,7 @@ scp_plot_sc_2d_gene_exp = function(
 
   # apply transformations
   if (do_umifrac_sc) {
-    sc_vector = sc_vector / colSums(umat) * 10000
+    sc_vector = sc_vector / Matrix::colSums(umat) * 10000
     sc_label = "UMI/10k"
   }
   if (!is.null(sc_transform)) {

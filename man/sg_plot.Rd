@@ -12,7 +12,8 @@ sg_plot(
   sid = NULL,
   mdnorm,
   annt,
-  ctpalette = NULL
+  ctpalette = NULL,
+  mc_label_size = 9
 )
 }
 \arguments{

@@ -182,7 +182,8 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
       output$gene_barplot <- shiny::renderPlot(
         sg_plot(
           nmat=MCFP, umat=UMIFRAC, cttable=CELL_ANNT,
-          sid=input$search_id, mdnorm=FALSE, annt=GENE_ANNT
+          sid=input$search_id, mdnorm=FALSE, annt=GENE_ANNT,
+          mc_label_size=0
         ),
         height = 600
       )
@@ -193,7 +194,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
           scp_plot_sc_2d_gene_exp(
             mc2d=MC2D, nmat=MCFP, umat=UMICOUNTSC,
             sid=input$search_id, annt=GENE_ANNT,
-            plot_mcs=TRUE, plot_edges=TRUE, plot_mc_name=TRUE,
+            plot_mcs=TRUE, plot_edges=TRUE, plot_mc_name=FALSE,
             do_umifrac_sc=TRUE, sc_max=NULL, sc_zero_color = "aliceblue"
           )
         },  error = function(e) plot.new()),
