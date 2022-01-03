@@ -454,11 +454,15 @@ genes_select_names <- function(dt,rid) {
 }
 
 #' Plot multigene heatmap to show expression of selected genes
-mgenes_hmap_height <- function(nmat, gids, annt, fcthrs=NULL){
+mgenes_hmap_height <- function(nmat, gids, annt, min_expression_fc = NULL, max_expression_fc = NULL){
   tryCatch({
     gs <- intersect(gids,rownames(nmat))
-    if (!is.null(fcthrs)) {
-      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<fcthrs))
+    if (!is.null(max_expression_fc)) {
+      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
+      gs <- gs[flt]
+    }
+    if (!is.null(min_expression_fc)) {
+      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
       gs <- gs[flt]
     }
     message("Length: ",length(gs))
@@ -471,9 +475,11 @@ mgenes_hmap_height <- function(nmat, gids, annt, fcthrs=NULL){
 }
 mgenes_hmap <- function(
   nmat, annt, gids,
-  palette, maxval=4, fcthrs=NULL,
-  ct_table, cell_type_palette=NULL, cluster_genes=TRUE,
-  mcid_font_size=12, mc_annotaion_height = unit(2, "mm")
+  min_expression_fc = NULL,  max_expression_fc = NULL, # gene filtering
+  scale_expression_fc = 4, # trim expression values, i.e. set anything > scale_expression_fc to this value
+  heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
+  ct_table, cell_type_palette = NULL, cluster_genes = TRUE,
+  mcid_font_size = 12, mc_annotaion_height = unit(2, "mm")
 ){
 
   # selected genes
@@ -487,29 +493,45 @@ mgenes_hmap <- function(
   names(row_labels) <- gs
 
   message("Genes in heatmap: ",nrow(nmat[gs,]))
-
-  # expression matrix
-  hm <- pmin(as.matrix(nmat[gs,]),maxval)
-  hm[is.na(hm)] <- 0
-  hm[is.nan(hm)] <- 0
-  hm[is.infinite(hm)] <- 0
-  #rownames(hm) <- row_labels[rownames(hm)]
+  hm <- as.matrix(nmat[gs,])
 
   # filter genes
-  if (!is.null(fcthrs)) {
-    flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<fcthrs))
+  if (!is.null(min_expression_fc)) {
+    message("Filtering genes by min FC")
+    flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
+    hm <- hm[flt,]
+  }
+  if (!is.null(max_expression_fc)) {
+    message("Filtering genes by max FC")
+    flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
     hm <- hm[flt,]
   }
 
+  # expression matrix
+  hm <- pmin(hm,scale_expression_fc)
+  hm[is.na(hm)] <- 0
+  hm[is.nan(hm)] <- 0
+  hm[is.infinite(hm)] <- 0
+
   # order genes
   if (cluster_genes == TRUE) {
-    #gord <- unique(as.vector(unlist(apply(hm, 2, function(x) names(sort(x))))))
+    message("Clustering genes")
     gord <- order(apply(hm, 1,function(x) which.max(rollmean(x,1))))
     hm <- hm[gord,]
   }
 
+  # heatmap colors
+  if (is.null(min_expression_fc)) min_expression_fc=0
+  if (is.null(max_expression_fc)) max_expression_fc=5
+  message("Scaling colors for heatmap between ", min_expression_fc , " and ", max_expression_fc)
+  col_fun = circlize::colorRamp2(
+    breaks = seq(from = min_expression_fc, to = max_expression_fc, length.out = length(heatmap_colors)),
+    colors = heatmap_colors
+  )
+
   # cell type colours
   if (is.null(cell_type_palette)) {
+    message("Colors for cell types")
     cell_type_palette <- ct_table$color
     names(cell_type_palette) <- ct_table$cell_type
   }
@@ -518,6 +540,7 @@ mgenes_hmap <- function(
   names(cell_colours) <- unique(names(cell_type_palette))
 
   # cell type annotiation bar
+  message("Cell types annotations")
   ct_ann <- ComplexHeatmap::columnAnnotation(
     ct = cell_types, col = list(ct=cell_colours), height = mc_annotaion_height,
     gp = gpar(fontsize = mcid_font_size), border = FALSE,
@@ -543,18 +566,25 @@ mgenes_hmap <- function(
   )
 
   # expression heatmap
-  ComplexHeatmap::Heatmap(
-    cbind(hm), name = "expression\n", show_heatmap_legend = FALSE,
+  message("Building heatmap")
+  ht1 <- ComplexHeatmap::Heatmap(
+    cbind(hm), name = "expression FC", show_heatmap_legend = TRUE,
     cluster_columns = FALSE, cluster_rows = FALSE,
     #row_labels = row_labels[rownames(hm)],
     show_column_dend = FALSE, show_row_dend = FALSE,
     show_column_names = TRUE, show_row_names = TRUE,
     row_names_side = "left", column_names_side = "bottom",
     column_names_gp = gpar(fontsize = mcid_font_size), border = TRUE,
-    col = palette, rect_gp = gpar(col = "gray88", lwd = 0.1),
+    col = col_fun, rect_gp = gpar(col = "gray88", lwd = 0.1),
     bottom_annotation = ct_ann, top_annotation = ct_ann,
-    right_annotation = gs_ann
+    right_annotation = gs_ann,
+    heatmap_legend_param = list(
+      legend_direction = "horizontal",
+      legend_width = unit(5, "cm"),
+      border = TRUE
+    )
   )
+  draw(ht1, heatmap_legend_side = "bottom")
 }
 
 

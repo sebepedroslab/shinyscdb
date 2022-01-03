@@ -276,20 +276,27 @@ multiGeneUI <- function(id, label="Multi gene expression") {
         title="Heatmap", width=12, solidHeader=TRUE,
         shiny::fluidRow(
           column(
-            width=4,
+            width=3,
             sliderInput(
-              inputId = ns("fcthrshmap"), label="Filter genes by min FC:",
+              inputId = ns("min_expression_fc"), label="Filter genes by min FC:",
               min=0, max=5, step=0.1, round=FALSE, value=0, width = "100%"
             )
           ),
           column(
-            width=4,
+            width=3,
             sliderInput(
-              inputId = ns("maxvalhmap"), label="Scale color to maximum value:",
+              inputId = ns("max_expression_fc"), label="Filter genes by max FC:",
+              min=0, max=5, step=0.1, round=FALSE, value=5, width = "100%"
+            )
+          ),
+          column(
+            width=3,
+            sliderInput(
+              inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
               min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
             )
           ),
-          column(width=2, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
+          column(width=1, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
           column(width=1, downloadButton(ns("download_genes_hmap"),"Download heatmap"))
         ),
         uiOutput(ns("ui_genes_heatmap")),
@@ -385,9 +392,14 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       # Heatmap of selected genes
       plotting_f <- function() {
         tryCatch(mgenes_hmap(
-          nmat=MCFP, annt=GENE_ANNT, gids=selected_genes$values, fcthrs=input$fcthrshmap,
-          palette=heatmap_colors, maxval=pmax(input$maxvalhmap,input$fcthrshmap),
-          ct_table=CELL_ANNT, cluster_genes=input$clustergenes, mcid_font_size=6
+          nmat=MCFP, annt=GENE_ANNT, gids=selected_genes$values,
+          min_expression_fc=input$min_expression_fc,
+          max_expression_fc=input$max_expression_fc,
+          scale_expression_fc=pmax(input$scale_expression_fc,input$min_expression_fc),
+          cluster_genes=input$clustergenes,
+          heatmap_colors=heatmap_colors,
+          ct_table=CELL_ANNT,
+          mcid_font_size=6
         ),  error = function(e) message(e))
       }
       output$genes_hmap <- shiny::renderPlot({
@@ -398,7 +410,9 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       hmh <- reactiveValues()
       hmap_height <- function() {
         hmh$ng <- mgenes_hmap_height(
-          nmat = MCFP, gids = selected_genes$values, annt=GENE_ANNT, fcthrs=input$fcthrshmap
+          nmat = MCFP, gids = selected_genes$values, annt=GENE_ANNT,
+          min_expression_fc=input$min_expression_fc,
+          max_expression_fc=input$max_expression_fc
         )
         if (hmh$ng<5) {
           sf <- 60
