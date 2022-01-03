@@ -523,6 +523,7 @@ mgenes_hmap <- function(
   # heatmap colors
   if (is.null(min_expression_fc)) min_expression_fc=0
   if (is.null(max_expression_fc)) max_expression_fc=5
+  max_expression_fc <- pmin(scale_expression_fc, max_expression_fc)
   message("Scaling colors for heatmap between ", min_expression_fc , " and ", max_expression_fc)
   col_fun = circlize::colorRamp2(
     breaks = seq(from = min_expression_fc, to = max_expression_fc, length.out = length(heatmap_colors)),

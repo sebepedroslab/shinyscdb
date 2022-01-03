@@ -7,11 +7,17 @@ introUI <- function(id, label="Intro") {
     shiny::fluidRow(
       shinydashboard::box(
         title="Metacell 2D projection", width = 8, height = 1000, solidHeader = TRUE,
-        shiny::plotOutput(ns("plot_2d_proj"), height = 800)
+        withSpinner(
+          shiny::plotOutput(ns("plot_2d_proj"), height = 800),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       ),
       shinydashboard::box(
         title = "Cell type annotation", width = 4, height = 1000, solidHeader = TRUE,
-        tableOutput(ns("cell_annot_table"))
+        withSpinner(
+          tableOutput(ns("cell_annot_table")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       )
     ),
     shiny::fluidRow(
@@ -23,8 +29,10 @@ introUI <- function(id, label="Intro") {
               grouped in cell types (column color bar annotation).
               Barplot: symbiodinium signal in metacells."
         ),
-        #imageOutput(ns("plot_expression"))
-        shiny::plotOutput(ns("plot_expression"))
+        withSpinner(
+          shiny::plotOutput(ns("plot_expression")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       )
     )
   )
@@ -108,23 +116,37 @@ singleGeneUI <- function(id, label="Single gene expression") {
       ),
       shinydashboard::box(
         title="Your search:", width=6, solidHeader=TRUE,
-        tableOutput(ns("single_gene"))
+        #withSpinner(
+          tableOutput(ns("single_gene"))
+        #  type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        #)
       )
     ),
     shiny::fluidRow(
       shinydashboard::box(
         title="2D projection", width=8, height = 1000, solidHeader=TRUE,
-        tryCatch(shiny::plotOutput(ns("gene_2d"), height = 900), error=function(e) NULL)
+        tryCatch(
+          withSpinner(
+            shiny::plotOutput(ns("gene_2d"), height = 900),
+            type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          ), error=function(e) NULL
+        )
       ),
       shinydashboard::box(
         title = "Cell type annotation", width = 4, height = 1000, solidHeader = TRUE,
-        tableOutput(ns("cell_annot_table"))
+        withSpinner(
+          tableOutput(ns("cell_annot_table")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       )
     ),
     shiny::fluidRow(
       shinydashboard::box(
         title="", width=12, height = 900, solidHeader=TRUE,
-        shiny::plotOutput(ns("gene_barplot"), height = 700)
+        withSpinner(
+          shiny::plotOutput(ns("gene_barplot"), height = 700),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       )
     )
   )
@@ -299,7 +321,10 @@ multiGeneUI <- function(id, label="Multi gene expression") {
           column(width=1, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
           column(width=1, downloadButton(ns("download_genes_hmap"),"Download heatmap"))
         ),
-        uiOutput(ns("ui_genes_heatmap")),
+        withSpinner(
+          uiOutput(ns("ui_genes_heatmap")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        ),
         imageOutput(ns("plot_ct_legend_horizontal_heatmap"))
       )
     )
@@ -528,7 +553,11 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
     shiny::fluidRow(
       shinydashboard::box(
         title="Gene table", width=12, solidHeader=TRUE,
-        DTOutput(ns("genes_summary_table")), shiny::br(),
+        withSpinner(
+          DTOutput(ns("genes_summary_table")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        ),
+        shiny::br(),
         shiny::h5("Total UMIs is the total UMI count for a gene in selected metacells."),
         shiny::h5("% UMIs is the percentage of UMIs for a gene that come from the selected metacells."),
         shiny::h5("Median fc is the median enrichment of UMIs for a gene in selected metacells."),
