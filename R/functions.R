@@ -38,10 +38,10 @@ fread_gene_annotation <- function(
 #' @return daata.table with the following columns: mc, cell_type, color
 #'
 #' @export
-fread_cell_annotation <- function(file) {
+fread_cell_annotation <- function(file, select=NULL) {
 
-  CELL_ANNT <- data.table::fread(file = file, sep = "\t", fill = TRUE, select=1:3)
-  setnames(CELL_ANNT, c("mc","cell_type","color"))
+  CELL_ANNT <- data.table::fread(file = file, sep = "\t", fill = TRUE, select=select)
+  setnames(CELL_ANNT, colnames(CELL_ANNT)[1:3], c("mc","cell_type","color"))
 
   return(CELL_ANNT)
 }
@@ -709,7 +709,7 @@ scp_plot_cmod_markers_mc <- function(
   clust_col = NULL, clust_bars = NULL, clust_col_others = NULL, col_others = NULL,
   clust_anno_size = unit(1,"mm"),
   show_mc_names = TRUE, mc_font_size = 5,
-  heatmap_colors = c("white","white","orange","red","purple","black"),
+  heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
   max_expression_fc = 5,
   gene_chr_limit = 70,
   verbose=FALSE,
@@ -951,7 +951,7 @@ scp_plot_cmod_markers_sc <- function(
   clust_col = NULL, clust_bars = NULL, clust_col_others = NULL, col_others = NULL,
   clust_anno_size = unit(1,"mm"),
   show_mc_names = TRUE, mc_font_size = 5,
-  heatmap_colors = c("white","white","orange","red","purple","black"),
+  heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
   gene_chr_limit = 70,
   verbose=FALSE,
   save_rds=FALSE,
