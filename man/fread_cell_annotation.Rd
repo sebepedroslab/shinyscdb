@@ -4,7 +4,7 @@
 \alias{fread_cell_annotation}
 \title{Import metacell annotations}
 \usage{
-fread_cell_annotation(file)
+fread_cell_annotation(file, select = NULL)
 }
 \arguments{
 \item{file}{path to file to load}

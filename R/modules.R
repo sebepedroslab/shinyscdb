@@ -78,7 +78,7 @@ introServer <- function(id, config_file="config.yaml", config_id) {
 
       # 2d mc projection
       output$plot_2d_proj <- shiny::renderPlot(
-        mc_2d_plot(MC2D,CELLMC,CELL_ANNT),
+        mc_2d_plot(MC2D,CELLMC,CELL_ANNT,plot_edges=FALSE),
         height = function() {
           height = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
           pmin(height, 900)
@@ -216,7 +216,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
           scp_plot_sc_2d_gene_exp(
             mc2d=MC2D, nmat=MCFP, umat=UMICOUNTSC,
             sid=input$search_id, annt=GENE_ANNT,
-            plot_mcs=TRUE, plot_edges=TRUE, plot_mc_name=FALSE,
+            plot_mcs=TRUE, plot_edges=FALSE, plot_mc_name=FALSE,
             do_umifrac_sc=TRUE, sc_max=NULL, sc_zero_color = "aliceblue"
           )
         },  error = function(e) plot.new()),
@@ -489,11 +489,16 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
         ),
         conditionalPanel(
           condition = "input.mcselecttype == 'input'", ns=ns,
-          shiny::selectInput(
+          # shiny::selectInput(
+          #   inputId=ns("ids_mcs"),
+          #   label="Select one or more individual metacells",
+          #   choices=NULL, multiple=TRUE, selected=list(1,2),
+          #   selectize = TRUE
+          # )
+          shiny::textInput(
             inputId=ns("ids_mcs"),
             label="Select one or more individual metacells",
-            choices=NULL, multiple=TRUE, selected=list(1,2),
-            selectize = TRUE
+            value = "1,3-4"
           )
         ),
         conditionalPanel(
@@ -635,8 +640,23 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
       )
 
       selected_mcs <- reactive({
-        if(input$mcselecttype == 'input'){
-          input$ids_mcs
+        if (input$mcselecttype == 'input'){
+          input_text = strsplit(input$ids_mcs, ",")[[1]]
+          smcs <- unlist(lapply(input_text, function(text_string) {
+            if (grepl("-",text_string)) {
+              input_range = strsplit(text_string, "-")[[1]]
+              print(input_range)
+              seq(
+                from = as.integer(stringr::str_remove_all(input_range[1], " ")),
+                to = as.integer(stringr::str_remove_all(input_range[2], " ")),
+                by = 1
+              )
+            } else {
+              as.integer(stringr::str_remove_all(text_string, " "))
+            }
+          }))
+          # check that they are valid mcs
+          smcs[smcs %in% CELL_ANNT$mc]
         } else if(input$mcselecttype == 'file'){
           mcinputdt()[cell_type==input$ids_cts,mc]
         }

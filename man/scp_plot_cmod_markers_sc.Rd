@@ -23,7 +23,7 @@ scp_plot_cmod_markers_sc(
   clust_anno_size = unit(1, "mm"),
   show_mc_names = TRUE,
   mc_font_size = 5,
-  heatmap_colors = c("white", "white", "orange", "red", "purple", "black"),
+  heatmap_colors = c("white", "gray99", "orange", "orangered2", "#520c52"),
   gene_chr_limit = 70,
   verbose = FALSE,
   save_rds = FALSE,
