@@ -69,6 +69,8 @@ red_mc_vector <- function(x,range_sep=":") {
 #' Summarize cell annotation
 summarize_cell_annotation <- function(annt) {
 
+  setDT(annt)
+  setorder(annt,"mc")
   tanns <- tapply(annt$mc, annt$cell_type, red_mc_vector)
 
   dt <- data.table(
@@ -373,9 +375,9 @@ mc_2d_plot = function(
   cex_sc=0.75) {
 
   # get colors of metacells
-  mc_colors = cttable$color
+  mc_colors = structure(cttable$color, names=cttable$mc)
   # get colors of individual cells
-  cell_colors=mc_colors[mcsc[names(mc2d@sc_x)]]
+  cell_colors=mc_colors[as.character(mcsc[names(mc2d@sc_x)])]
 
   # determine plot max/min
   if (plot_mcs) {
