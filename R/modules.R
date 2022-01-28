@@ -711,3 +711,195 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
   )
 
 }
+
+#' Cross species comparison landing page
+#' @export
+comparaUI <- function(id, label="Cross species comparison") {
+  ns <- NS(id)
+
+  shiny::tagList(
+    shiny::fluidRow(
+      shinydashboard::box(
+
+        title="Parameters selection", width=6, solidHeader = TRUE,
+
+        # select level of grouping
+        shiny::selectInput(
+          ns("level"), "Level of single-cell grouping",
+          choices = c(
+            # "metacells" = "mcs",
+            "cell types" = "cts"
+            # "broad cell types" = "bct"
+          ), multiple = FALSE
+        ),
+
+        # select metric
+        shiny::selectInput(
+          ns("metric"), "Similarity metric",
+          choices = c(
+            "weighted pearson correlation" = "wpearson",
+            "weighted spearman correlation" = "wspearman",
+            "Jaccard index" = "jaccard",
+            "shafer index" = "shaferindex"
+          ), multiple = FALSE
+        ),
+
+        # select orthologs
+        shiny::selectInput(
+          ns("orthos"), "Orthologs",
+          choices = c(
+            "all orthologs" = "all",
+            "ono-to-one orthologs" = "o2o",
+            "transcription factors" = "tfs"
+          ), multiple = FALSE
+        ),
+
+        # select fold-change
+        shiny::selectInput(
+          ns("fcthrs"), "Gene fold-change threshold",
+          choices = c(1.1, 1.5, 2), multiple = FALSE
+        ),
+
+        # file
+        shiny::textOutput(ns("compara_file"))
+      ),
+
+      shinydashboard::box(
+        width=6,
+        verbatimTextOutput("ht_click_content")
+      )
+    ),
+
+    # heatmap
+    shiny::fluidRow(
+      shinydashboard::box(
+        width=6,
+        #div(
+        #  style="height:1250px;",
+          plotOutput("main_heatmap", brush = "ht_brush", click = "ht_click")
+        #)
+      )
+    )
+
+    # shiny::fluidRow(
+    #   shinydashboard::box(
+    #     title="Compara heatmap", width = 12, height = 3000, solidHeader = TRUE,
+    #     withSpinner(
+    #       shiny::plotOutput(ns("compara_heatmap")),
+    #       type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+    #     )
+    #   )
+    # )
+
+  )
+}
+
+#' Server logic for atlas introduction
+#' @export
+comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2) {
+  shiny::moduleServer(
+    id,
+
+    function(input, output, session) {
+
+      conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
+      COMPARA_DIR <-file.path(
+        conf[['default']]$data_dir,
+        conf[['default']]$compara_dir
+      )
+      INPUT_DIR1 <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id1]]$data_subdir
+      )
+      INPUT_DIR2 <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id2]]$data_subdir
+      )
+
+      # construct name of the file to load form the input parameters
+      CSPS <- tryCatch({
+        csps_file <- sprintf(
+          "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
+          input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
+        )
+        readRDS(file = file.path(COMPARA_DIR, csps_file))
+      }, error = function(e) {
+        warning("switching species order")
+        csps_file <- sprintf(
+          "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
+          input$level, input$orthos, config_id2, config_id1, input$metric, as.numeric(input$fcthrs)
+        )
+        readRDS(file = file.path(COMPARA_DIR, csps_file))
+      })
+      output$compara_file <- shiny::renderText(sprintf("%s; class %s", csps_file, class(CSPS)))
+
+      # heatmap
+      cor_hmap <- reactive({
+        heatmap = ComplexHeatmap::Heatmap(
+          CSPS$cor_matrix, cluster_rows = FALSE, cluster_columns = FALSE
+        )
+      })
+
+      output$og_pairs_num <- renderText(
+        sprintf("%s specifically expressed orthologous gene pairs", length(ct_csps()$top_cross_sp1))
+      )
+
+      hmap_height <- reactive({
+        10 * 15
+        # nrow(fread(conf()$ann_file1)) * 15
+      })
+
+      output$main_heatmap <- renderPlot({
+        shiny_env$ht = draw(cor_hmap()$heatmap)
+        shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
+      }, width = 1000, height = 1200)
+
+      output$plot_main_heatmap <- renderUI({
+        plotOutput(
+          "main_heatmap", height = hmap_height(), width = "100%",
+          brush = "ht_brush", click = "ht_click"
+        )
+      })
+
+      output$ht_click_content = renderText({
+        if(is.null(input$ht_click)) {
+          "Not selected."
+        } else {
+          pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+          ht = shiny_env$ht
+          pos = selectPosition(
+            ht, mark = FALSE, pos = pos1,
+            verbose = FALSE, ht_pos = shiny_env$ht_pos
+          )
+          if (!is.null(pos)) {
+            row_index = pos[1, "row_index"]
+            column_index = pos[1, "column_index"]
+            m = ht@ht_list[[1]]@matrix
+            v = m[row_index, column_index]
+            rn = rownames(m)[row_index]
+            cn = colnames(m)[column_index]
+            if(!is.na(ct_cor()$overlap_genes[[rn]][[cn]])) {
+              g1 <- ct_cor()$overlap_genes[[rn]][[cn]][[1]]
+              g2 <- ct_cor()$overlap_genes[[rn]][[cn]][[2]]
+              genes1 = paste(g1, collapse = "\n")
+              genes2 = paste(g2, collapse = "\n")
+              ng = length(g1)
+            } else {
+              genes1 = ""; genes1 = ""; ng = 0
+            }
+            glue(
+              "{rn} (row {row_index})",
+              "{cn} (column {column_index})",
+              "value: {v}",
+              "gene pairs: {ng}",
+              .sep = "\n")
+          } else { "Not selected." }
+        }
+      })
+
+
+      # Return the reactive
+      # return()
+    }
+  )
+}

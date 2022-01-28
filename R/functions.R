@@ -1227,3 +1227,5 @@ scp_plot_cmod_markers_sc <- function(
   message("single-cell heatmap done")
 
 }
+
+# Cross species functions
