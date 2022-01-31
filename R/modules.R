@@ -758,43 +758,51 @@ comparaUI <- function(id, label="Cross species comparison") {
         shiny::selectInput(
           ns("fcthrs"), "Gene fold-change threshold",
           choices = c(1.1, 1.5, 2), multiple = FALSE
-        ),
+        )
 
-        # file
-        shiny::textOutput(ns("compara_file"))
       ),
 
       shinydashboard::box(
-        width=6,
-        verbatimTextOutput("ht_click_content")
+        "Your search:", width=6, solidHeader = TRUE,
+        br(),
+        # withSpinner(
+        tableOutput(ns("compara_info")),
+        #   type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        # ),
+        h5("When you change parameters, regenerate results by clicking 'Compare species' button on the sidebar.")
       )
     ),
 
     # heatmap
     shiny::fluidRow(
       shinydashboard::box(
-        width=6,
-        #div(
-        #  style="height:1250px;",
-          plotOutput("main_heatmap", brush = "ht_brush", click = "ht_click")
-        #)
+        width=12, height = 900,
+        withSpinner(
+          plotOutput(ns("main_heatmap"), click = ns("ht_click")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
+      )
+    ),
+
+    shiny::fluidRow(
+      shinydashboard::box(
+        width = 6, solidHeader = FALSE,
+        br(),
+        # file
+        shiny::textOutput(ns("compara_file")),
+        br(),
+        # genes
+        withSpinner(
+          verbatimTextOutput(ns("ht_click_content")),
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        )
       )
     )
-
-    # shiny::fluidRow(
-    #   shinydashboard::box(
-    #     title="Compara heatmap", width = 12, height = 3000, solidHeader = TRUE,
-    #     withSpinner(
-    #       shiny::plotOutput(ns("compara_heatmap")),
-    #       type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-    #     )
-    #   )
-    # )
 
   )
 }
 
-#' Server logic for atlas introduction
+#' Server logic for cross-species coparison
 #' @export
 comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2) {
   shiny::moduleServer(
@@ -802,18 +810,25 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
 
     function(input, output, session) {
 
+      # updateSelectizeInput(
+      #   session, "comparasp1",
+      #   choices = sps, # structure(setdiff(sps,config_id2), names=names(sps)[-match(config_id2,sps)]),
+      #   server = TRUE
+      # )
+      # observeEvent(input$comparasp2, {
+      #   spsf <- structure(setdiff(sps,input$comparasp2), names=names(sps)[-match(input$comparasp2,sps)])
+      #   updateSelectizeInput(session, "comparasp1", choices = spsf, server = TRUE)
+      # })
+      # observeEvent(input$comparasp1, {
+      #   spsf <- structure(setdiff(sps,input$comparasp1), names=names(sps)[-match(input$comparasp1,sps)])
+      #   print(spsf)
+      #   updateSelectizeInput(session, "comparasp2", choices = spsf, server = TRUE)
+      # })
+
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
       COMPARA_DIR <-file.path(
         conf[['default']]$data_dir,
         conf[['default']]$compara_dir
-      )
-      INPUT_DIR1 <- file.path(
-        conf[['default']]$data_dir,
-        conf[[config_id1]]$data_subdir
-      )
-      INPUT_DIR2 <- file.path(
-        conf[['default']]$data_dir,
-        conf[[config_id2]]$data_subdir
       )
 
       # construct name of the file to load form the input parameters
@@ -829,37 +844,66 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
           "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
           input$level, input$orthos, config_id2, config_id1, input$metric, as.numeric(input$fcthrs)
         )
+        config_id1_orig <- config_id1
+        config_id1 <- config_id2
+        config_id2 <- config_id1_orig
         readRDS(file = file.path(COMPARA_DIR, csps_file))
       })
       output$compara_file <- shiny::renderText(sprintf("%s; class %s", csps_file, class(CSPS)))
 
-      # heatmap
-      cor_hmap <- reactive({
-        heatmap = ComplexHeatmap::Heatmap(
-          CSPS$cor_matrix, cluster_rows = FALSE, cluster_columns = FALSE
-        )
-      })
-
-      output$og_pairs_num <- renderText(
-        sprintf("%s specifically expressed orthologous gene pairs", length(ct_csps()$top_cross_sp1))
+      # annotation files for species
+      INPUT_DIR1 <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id1]]$data_subdir
       )
+      cann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$ann_file)
+      cann1 <- fread(cann1_file)
+      gann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$gene_annot_file)
+      gann1 <- fread(gann1_file)
 
-      hmap_height <- reactive({
-        10 * 15
-        # nrow(fread(conf()$ann_file1)) * 15
+      INPUT_DIR2 <- file.path(
+        conf[['default']]$data_dir,
+        conf[[config_id2]]$data_subdir
+      )
+      cann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$ann_file)
+      cann2 <- fread(cann2_file)
+      gann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$gene_annot_file)
+      gann2 <- fread(gann2_file)
+
+      ann_cols <- c("cell_type","color") # this should be interactively selected, but for now only celltypes
+      ann1 <- unique(cann1[,..ann_cols])[,cell_type:=paste(config_id1,cell_type,sep="|")]
+      ann2 <- unique(cann2[,..ann_cols])[,cell_type:=paste(config_id2,cell_type,sep="|")]
+
+      # table with summary of search params
+      compara_info_dt <- data.table(
+        "clustering level" = input$level,
+        "orthologs" = input$orthos,
+        "species1" = config_id1,
+        "species2" = config_id2,
+        "similarity metric" = input$metric,
+        "fc_threshold" = as.numeric(input$fcthrs),
+        "variable genes" = length(CSPS$var_genes)
+      ) %>% t() %>% as.data.table(keep.rownames = "parameter")
+      setnames(compara_info_dt, c("parameter","value"))
+      output$compara_info <- renderTable(compara_info_dt)
+
+
+      # non-interactive heatmap
+      cor_heatmap <- csps_plot_annotated_matrix(
+        mat = CSPS$cor_matrix,
+        name = CSPS$method,
+        #row_annot = ann1, col_annot = ann2,
+        fontsize = 8
+      )
+      output$cor_hmap_simple <- shiny::renderPlot({
+        ComplexHeatmap::draw(cor_heatmap)
       })
 
+      # interactive heatmap
       output$main_heatmap <- renderPlot({
-        shiny_env$ht = draw(cor_hmap()$heatmap)
+        shiny_env$ht = draw(cor_heatmap)
         shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
-      }, width = 1000, height = 1200)
-
-      output$plot_main_heatmap <- renderUI({
-        plotOutput(
-          "main_heatmap", height = hmap_height(), width = "100%",
-          brush = "ht_brush", click = "ht_click"
-        )
-      })
+      }, width = 800, height = 800)
 
       output$ht_click_content = renderText({
         if(is.null(input$ht_click)) {
@@ -878,16 +922,17 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
             v = m[row_index, column_index]
             rn = rownames(m)[row_index]
             cn = colnames(m)[column_index]
-            if(!is.na(ct_cor()$overlap_genes[[rn]][[cn]])) {
-              g1 <- ct_cor()$overlap_genes[[rn]][[cn]][[1]]
-              g2 <- ct_cor()$overlap_genes[[rn]][[cn]][[2]]
+            olg = CSPS$overlap_genes[[1]][[1]]
+            if (!is.null(olg)) {
+              g1 <- CSPS$overlap_genes[[rn]][[cn]][[1]]
+              g2 <- CSPS$overlap_genes[[rn]][[cn]][[2]]
               genes1 = paste(g1, collapse = "\n")
               genes2 = paste(g2, collapse = "\n")
               ng = length(g1)
             } else {
-              genes1 = ""; genes1 = ""; ng = 0
+              genes1 = ""; genes1 = ""; ng = ""
             }
-            glue(
+            glue::glue(
               "{rn} (row {row_index})",
               "{cn} (column {column_index})",
               "value: {v}",
@@ -895,6 +940,12 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
               .sep = "\n")
           } else { "Not selected." }
         }
+
+        # TO-DOs:
+        # gene annotations tables
+        # genes with fc
+        # add cell type annotations to heatmap
+
       })
 
 
@@ -903,3 +954,4 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
     }
   )
 }
+

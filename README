@@ -1,0 +1,49 @@
+This package contains functions for database shiny apps, including single species metacell atlases and comparative anlyisis between pairs of species.
+
+To use these functions, the app also needs `config.yaml` in which input files are specified, and `global.R` defining global variables such as list of species (note that the species acronyms should match those used in config file):
+
+```
+# packages
+options(repos = BiocManager::repositories())
+library(BiocManager)
+library(shiny)
+library(data.table)
+library(dplyr)
+library(reshape2)
+library(stringr)
+library(glue)
+library(ggplot2)
+library(ggpubr)
+library(RColorBrewer)
+library(viridis)
+library(gplots)
+library(shinydashboard)
+library(shinyWidgets)
+library(DT)
+library(zoo)
+library(kableExtra)
+library(ComplexHeatmap)
+library(circlize)
+library(scales)
+library(egg)
+library(shinyscdb)
+library(shinycssloaders)
+
+# Input data ------------------------------------------------------------------
+
+# read config file
+conf <- yaml::yaml.load_file("config.yaml", eval.expr=TRUE)
+
+# species
+sps <- c(
+  "Hoilungia hongkongensis" = "Hhon",
+  "Trichoplax adhaerens" = "Tadh",
+  "Nematostella vectensis" = "Nvec"
+)
+
+# graphical params
+heatmap_colors <- c("white","gray99","orange","orangered2","#520c52")
+
+# interactive heatmap
+shiny_env = new.env()
+```

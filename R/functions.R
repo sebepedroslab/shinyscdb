@@ -459,10 +459,10 @@ genes_select_names <- function(dt,rid) {
 mgenes_hmap_height <- function(nmat, gids, annt, min_expression_fc = NULL, max_expression_fc = NULL){
   tryCatch({
     gs <- intersect(gids,rownames(nmat))
-    if (!is.null(max_expression_fc)) {
-      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
-      gs <- gs[flt]
-    }
+    # if (!is.null(max_expression_fc)) {
+    #   flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
+    #   gs <- gs[flt]
+    # }
     if (!is.null(min_expression_fc)) {
       flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
       gs <- gs[flt]
@@ -503,11 +503,11 @@ mgenes_hmap <- function(
     flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
     hm <- hm[flt,]
   }
-  if (!is.null(max_expression_fc)) {
-    message("Filtering genes by max FC")
-    flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
-    hm <- hm[flt,]
-  }
+  # if (!is.null(max_expression_fc)) {
+  #   message("Filtering genes by max FC")
+  #   flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
+  #   hm <- hm[flt,]
+  # }
 
   # expression matrix
   hm <- pmin(hm,scale_expression_fc)
@@ -1229,3 +1229,196 @@ scp_plot_cmod_markers_sc <- function(
 }
 
 # Cross species functions
+
+#' Plot annotated matrix
+#' (https://github.com/sebepedroslab/metacell-downstream-functions/blob/98f1d7fdd36d982d28e8773f10bfe13e342f628c/Cross_species_functions.R#L1531)
+#'
+#' @param mat any type of data matrix
+#' @param name name of the type of data in the matrix (default: "data")
+#' @param heatmap_colors vector of colors to map to the data
+#' @param min_val,max_val min and max values of the colorscale
+#' @param use_raster whether to rasterise
+#' @param row_title,col_title titles for rows and columns
+#' @param row_labels,col_labels ad-hoc labels for rows and columns (if set to NULL, they are taken from `mat` object)
+#' @param max_length_labels truncate `row_labels` and `col_labels` to this maximum length, in characters (default 40)
+#' @param fontsize size of labels (default 5 pts)
+#' @param row_annot,col_annot either dataframes where the 1st column is a vector of categories for each row/column (same order is assumed) and 2nd is a vector of colors, or simply a vector of categories. Default is NULL, i.e. no annotations.
+#' @param row_annot_cols,col_annot_cols named vector of colors, where names are categories that match the vector in `row_annot`/`col_annot` (not necessary if `row_annot`/`col_annot` are dataframes).
+#' @param row_annot_legend,col_annot_legend whether to plot row/col annotation legends
+#' @param row_cluster,col_cluster if TRUE/FALSE, whether to cluster rows/columns with default parameters. Other built-in options are "pearson", "euclidean", or a precomputed `hclust` object.
+#' @param cex_dotplot transformation factor for dot size, if `do_dotplot=TRUE`
+#' @param do_dotplot draw a dot plot instead of a heatmap
+#'
+#' @return a ComplexHeatmap object
+#'
+csps_plot_annotated_matrix = function(
+  mat,
+  name = "data",
+  heatmap_colors = c("white","orange","orangered2","#520c52"),
+  min_val = 0,
+  max_val = 1,
+  use_raster = TRUE,
+  row_title = NULL,
+  col_title = NULL,
+  row_labels = NULL,
+  col_labels = NULL,
+  max_length_labels = 40,
+  fontsize = 5,
+  row_annot = NULL,
+  row_annot_cols = NULL,
+  row_annot_legend = FALSE,
+  row_cluster = FALSE,
+  col_annot = NULL,
+  col_annot_cols = NULL,
+  col_annot_legend = FALSE,
+  col_cluster = FALSE,
+  cex_dotplot = 0.02,
+  do_dotplot = FALSE) {
+
+  # libraries
+  require("ComplexHeatmap")
+  require("circlize")
+
+  # get colors for heatmap
+  col_fun = circlize::colorRamp2(
+    breaks = seq(from = min_val, to = max_val, length.out = length(heatmap_colors)),
+    colors = heatmap_colors)
+
+  # Titles
+  # get row title
+  if (is.null(row_title)) {
+    row_title = sprintf("n = %i", nrow(mat))
+  } else {
+    row_title = sprintf("%s, n = %i", row_title, nrow(mat))
+  }
+  # get col title
+  if (is.null(col_title)) {
+    col_title = sprintf("n = %i", ncol(mat))
+  } else {
+    col_title = sprintf("%s, n = %i", col_title, ncol(mat))
+  }
+
+  # Row and column names
+  if (is.null(row_labels)) {
+    row_labels = rownames(mat)
+  }
+  if (is.null(col_labels)) {
+    col_labels = colnames(mat)
+  }
+  # truncate if necessary
+  if (!is.null(max_length_labels)) {
+    row_labels = stringr::str_trunc(row_labels, max_length_labels)
+    col_labels = stringr::str_trunc(col_labels, max_length_labels)
+  }
+
+  # get row annotations
+  # by default, get labels
+  ha_row = ComplexHeatmap::HeatmapAnnotation(lab = anno_text(row_labels, which = "row", gp = gpar(fontsize = fontsize), just = "left"), which = "row")
+  # add coloring info if available
+  if (!is.null(row_annot)) {
+    # ensure that row_annot is a list of dataframes
+    if ("data.frame" %in% class(row_annot)) { row_annot = list(row_annot) }
+    # loop through list of dataframes, adding colors
+    for (ni in 1:length(row_annot)) {
+      # get unique named list of colors
+      row_annot_u = unique(row_annot[[ni]])
+      row_annot_cols = row_annot_u[,2]
+      names(row_annot_cols) = row_annot_u[,1]
+      # get vector of categories
+      row_annot_cats = row_annot[[ni]][,1]
+      # add new annotation track
+      ha_row = c(ha_row,ComplexHeatmap::HeatmapAnnotation(
+        clusters = row_annot_cats,
+        col = list(clusters = row_annot_cols),
+        which = "row",
+        show_annotation_name = FALSE,
+        show_legend = row_annot_legend))
+    }
+  }
+
+  # get column annotations
+  # by default, get labels
+  ha_col = ComplexHeatmap::HeatmapAnnotation(lab = anno_text(col_labels, which = "column", gp = gpar(fontsize = fontsize), just = "right"), which = "column")
+  # add coloring info if available
+  if (!is.null(col_annot)) {
+    # ensure that col_annot is a list of dataframes
+    if ("data.frame" %in% class(col_annot)) { col_annot = list(col_annot) }
+    # loop through list of dataframes, adding colors
+    for (ni in 1:length(col_annot)) {
+      # get unique named list of colors
+      col_annot_u = unique(col_annot[[ni]])
+      col_annot_cols = col_annot_u[,2]
+      names(col_annot_cols) = col_annot_u[,1]
+      # get vector of categories
+      col_annot_cats = col_annot[[ni]][,1]
+      # add new annotation track
+      ha_col = c(ha_col,ComplexHeatmap::HeatmapAnnotation(
+        clusters = col_annot_cats,
+        col = list(clusters = col_annot_cols),
+        which = "column",
+        show_annotation_name = FALSE,
+        show_legend = col_annot_legend))
+    }
+  }
+
+
+  # should this be a dot plot?
+  if (do_dotplot) {
+    cell_fun_dotplot = function(j, i, x, y, width, height, fill) {
+      range01 = function(x) { (x - min(x)) / (max(x) - min(x)) }
+      grid.circle(
+        x = x, y = y,
+        r = sqrt(range01(mat)[i, j]) * cex_dotplot,
+        gp = gpar(col = col_fun(mat[i, j]), fill = col_fun(mat[i, j]))
+      )
+    }
+    rect_gp = gpar(type = "none")
+  } else {
+    cell_fun_dotplot = NULL
+    rect_gp = gpar(col = "white", lwd = 0.3)
+  }
+
+  # how to perform row-wise clustering
+  if (row_cluster %in% c("pearson","spearman","kendall", "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")) {
+    row_cluster_method = row_cluster
+    row_cluster = TRUE
+  } else {
+    row_cluster_method = NULL
+  }
+  # how to perform column-wise clustering
+  if (col_cluster %in% c("pearson","spearman","kendall", "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")) {
+    col_cluster_method = col_cluster
+    col_cluster = TRUE
+  } else {
+    col_cluster_method = NULL
+  }
+
+  # heatmap object
+  hm = ComplexHeatmap::Heatmap(
+    mat,
+    name = name,
+    cell_fun = cell_fun_dotplot,
+    rect_gp = rect_gp,
+    use_raster = use_raster,
+    col = col_fun,
+    border = TRUE,
+    cluster_rows = row_cluster,
+    clustering_distance_rows = row_cluster_method,
+    cluster_columns = col_cluster,
+    clustering_distance_columns = col_cluster_method,
+    row_title = row_title,
+    column_title = col_title,
+    show_row_names = FALSE,
+    show_column_names = FALSE,
+    # column annotations
+    top_annotation = ha_col,
+    bottom_annotation = ha_col,
+    # row annotations
+    left_annotation = ha_row,
+    right_annotation = ha_row
+  )
+
+  # return heatmap object
+  return(hm)
+
+}

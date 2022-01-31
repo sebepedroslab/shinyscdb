@@ -2,10 +2,10 @@
 % Please edit documentation in R/modules.R
 \name{comparaServer}
 \alias{comparaServer}
-\title{Server logic for atlas introduction}
+\title{Server logic for cross-species coparison}
 \usage{
 comparaServer(id, config_file = "config.yaml", config_id1, config_id2)
 }
 \description{
-Server logic for atlas introduction
+Server logic for cross-species coparison
 }
