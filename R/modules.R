@@ -567,7 +567,8 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
         shiny::h5("% UMIs is the percentage of UMIs for a gene that come from the selected metacells."),
         shiny::h5("Median fc is the median enrichment of UMIs for a gene in selected metacells."),
         shiny::br(),
-        downloadButton(outputId=ns("download_table"), label="Download gene table")
+        downloadButton(outputId=ns("download_table"), label="Download gene table"),
+        downloadButton(outputId=ns("download_subset_table"), label="Download gene table for selected genes")
       )
     )
   )
@@ -691,7 +692,28 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
         gsmcs()$summary
       )
 
-      # download multiple metacell query table
+
+      # download subset table
+      selected_genes_table <- eventReactive(output$download_subset_table, {
+        gsmcs()$gene_summary[input$genes_summary_table_rows_selected]
+      })
+      output$download_subset_table <- downloadHandler(
+        filename <- function(){
+          mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
+          fcn <- paste0("fc",input$fc_selection)
+          if (input$fcbg==TRUE)
+            fcn <- paste0(fcn,"_fcbg",input$fcbg_selection)
+          sprintf("mc_summary_%s_%s_selected_genes.tsv",mc_ids_names,fcn)
+        },
+        content <- function(file){
+          write.table(
+            selected_genes_table(),
+            file, row.names=FALSE, col.names=TRUE, quote=FALSE, sep="\t"
+          )
+        }
+      )
+
+      # download full table
       output$download_table <- downloadHandler(
         filename <- function(){
           mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
