@@ -694,9 +694,9 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
 
 
       # download subset table
-      selected_genes_table <- eventReactive(output$download_subset_table, {
-        gsmcs()$gene_summary[input$genes_summary_table_rows_selected]
-      })
+      # selected_genes_table <- eventReactive(output$download_subset_table, {
+      #   gsmcs()$gene_summary[input$genes_summary_table_rows_selected]
+      # })
       output$download_subset_table <- downloadHandler(
         filename <- function(){
           mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
@@ -707,7 +707,7 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
         },
         content <- function(file){
           write.table(
-            selected_genes_table(),
+            gsmcs()$gene_summary[input$genes_summary_table_rows_selected],
             file, row.names=FALSE, col.names=TRUE, quote=FALSE, sep="\t"
           )
         }
