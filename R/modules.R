@@ -806,20 +806,23 @@ comparaUI <- function(id, label="Cross species comparison") {
       ),
 
       shinydashboard::box(
-        width = 4, height = 800, solidHeader = FALSE,
+        "Selected cell type pair:", width = 4, height = 800, solidHeader = FALSE,
         br(),
+        h5("Click on the cell in heatmap to see details about cell type pair similarity."),
         # file
-        shiny::textOutput(ns("compara_file")),
+        # shiny::textOutput(ns("compara_file")),
         br(),
         # genes
-        verbatimTextOutput(ns("ht_click_content"))
+        verbatimTextOutput(ns("ht_click_content")),
+        br(),
+        h5("See below the table with annotation of shared genes for selected cell type.")
       )
     ),
 
     shiny::fluidRow(
       shinydashboard::box(
         width = 12, solidHeader = FALSE,
-        DT::dataTableOutput("ht_click_table")
+        DT::dataTableOutput(ns("ht_click_table"))
       )
     )
 
@@ -856,23 +859,25 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
       )
 
       # construct name of the file to load form the input parameters
-      csps_file <- sprintf(
+      csps_file <-  file.path(COMPARA_DIR, sprintf(
         "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
         input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
-      )
+      ))
+      message("Reading ", csps_file)
       if (file.exists(csps_file)) {
-        CSPS <- readRDS(file = file.path(COMPARA_DIR, csps_file))
+        CSPS <- readRDS(csps_file)
       } else {
         warning("switching species order")
         config_id1_orig <- config_id1
         config_id1 <- config_id2
         config_id2 <- config_id1_orig
-        csps_file <- sprintf(
+        csps_file <-  file.path(COMPARA_DIR, sprintf(
           "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
           input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
-        )
+        ))
+        message("Reading ", csps_file)
         CSPS <- tryCatch(
-          readRDS(file = file.path(COMPARA_DIR, csps_file)),
+          readRDS(csps_file),
           error = function(e) NULL
         )
       }
@@ -886,22 +891,22 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
           conf[[config_id1]]$data_subdir
         )
         cann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$ann_file)
-        cann1 <- fread(cann1_file)
+        cann1 <- fread(cann1_file, header=TRUE)
         gann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$gene_annot_file)
-        gann1 <- fread(gann1_file)
+        gann1 <- fread(gann1_file, header=FALSE)
         tfs1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$tf_annot_file)
-        tfs1 <- fread(tfs1_file)
+        tfs1 <- fread(tfs1_file, header=FALSE)
 
         INPUT_DIR2 <- file.path(
           conf[['default']]$data_dir,
           conf[[config_id2]]$data_subdir
         )
         cann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$ann_file)
-        cann2 <- fread(cann2_file)
+        cann2 <- fread(cann2_file, header=TRUE)
         gann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$gene_annot_file)
-        gann2 <- fread(gann2_file)
+        gann2 <- fread(gann2_file, header=FALSE)
         tfs2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$tf_annot_file)
-        tfs2 <- fread(tfs2_file)
+        tfs2 <- fread(tfs2_file, header=FALSE)
 
         ann_cols <- c("cell_type","color") # this should be interactively selected, but for now only cell types
         ann1 <- unique(cann1[,..ann_cols])[,cell_type:=paste(config_id1,cell_type,sep="|")]
@@ -962,7 +967,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
               v = m[row_index, column_index]
               rn = rownames(m)[row_index]
               cn = colnames(m)[column_index]
-              olg = CSPS$overlap_genes[[rn]][[cn]]
+              olg = CSPS$overlap_genes[[1]][[rn]][[cn]]
               if (!is.null(olg)) {
                 ng = length(olg)
               } else {
@@ -997,29 +1002,37 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
             v = m[row_index, column_index]
             rn = rownames(m)[row_index]
             cn = colnames(m)[column_index]
-            if(!is.na(CSPS$overlap_genes[[rn]][[cn]])) {
+            genes1 = CSPS$overlap_genes[[1]][[rn]][[cn]]
+            genes2 = CSPS$overlap_genes[[2]][[rn]][[cn]]
 
-              genes1 = CSPS$overlap_genes[[rn]][[cn]]
-              genes2 = CSPS$overlap_genes[[rn]][[cn]]
+            print(length(genes1)); print(length(genes2))
 
-              #genes1_clean <- str_remove(genes1,"\\.[0-9]")
-              #genes2_clean <- str_remove(genes2,"\\.[0-9]")
+            if(!is.null(genes1)) {
 
-              ids1 <- match(genes1_clean, gann1[[1]])
-              ids2 <- match(genes2_clean, gann2[[1]])
+              #genes1 <- str_remove(genes1,"\\.[0-9]")
+              #genes2 <- str_remove(genes2,"\\.[0-9]")
+
+              ids1 <- match(genes1, gann1[[1]])
+              ids2 <- match(genes2, gann2[[1]])
 
               gdt <- cbind.data.frame(gann1[ids1], gann2[ids2])
               setDT(gdt)
-              add_col_names <- c("pfam","bbh")
+              add_col_names <- c("bbh","pfam")
               gdtcolnames <- c(config_id1,add_col_names,config_id2,add_col_names)
               setnames(gdt, gdtcolnames)
 
               gdt[,tf:="no"]
-              gdt[gdt[[1]] %in% tfs1[[1]], tf:="yes"]
-              gdt[gdt[[5]] %in% tfs2[[1]], tf:="yes"]
+              gdt[get(config_id1) %in% tfs1[[1]], tf:="yes"]
+              gdt[get(config_id2) %in% tfs2[[1]], tf:="yes"]
               gdt[,tf:=factor(tf,levels=c("yes","no"))]
               setorder(gdt,tf)
-              datatable(gdt) %>% formatStyle(
+              datatable(
+                gdt,
+                extensions=c("Buttons",'Scroller'),
+                options = list(
+                  dom = 'tp', scrollX = TRUE, ordering = TRUE, pageLength = 15
+                )
+              ) %>% formatStyle(
                 'tf',
                 target = 'row',
                 backgroundColor = styleEqual(c("yes","no"), c("AntiqueWhite","white"))
@@ -1028,12 +1041,9 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
             } else {
               NULL
             }
-          } else { NULL }
-        },
-        rownames = FALSE, selection = list(mode = 'none'),
-        options = list(
-          dom = 'tp', scrollX = TRUE, ordering = FALSE, pageLength = 50
-        ))
+          }
+
+        }, rownames = FALSE, selection = list(mode = 'none'))
 
     }
 
