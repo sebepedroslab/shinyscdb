@@ -765,7 +765,7 @@ comparaUI <- function(id, label="Cross species comparison") {
             "Shafer index" = "shaferindex",
             "Kullback–Leibler divergence" = "kld",
             "Jensen–Shannon divergence" = "jsd",
-            "orthogonal least squares" = "ols"
+            "orthogonal least squares" = "onls"
           ), multiple = FALSE
         ),
 
@@ -788,8 +788,8 @@ comparaUI <- function(id, label="Cross species comparison") {
       ),
 
       shinydashboard::box(
-        "Your search:", width=6, solidHeader = TRUE,
-        br(),
+        "Your search:", width = 6, solidHeader = TRUE,
+        h5(""),
         tableOutput(ns("compara_info")),
         h5("When you change parameters, regenerate results by clicking 'Compare species' button on the sidebar.")
       )
@@ -798,17 +798,15 @@ comparaUI <- function(id, label="Cross species comparison") {
     # heatmap
     shiny::fluidRow(
       shinydashboard::box(
-        width=12, height = 900,
+        width = 8, height = 800,
         withSpinner(
           plotOutput(ns("main_heatmap"), click = ns("ht_click")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
         )
-      )
-    ),
+      ),
 
-    shiny::fluidRow(
       shinydashboard::box(
-        width = 6, solidHeader = FALSE,
+        width = 4, height = 800, solidHeader = FALSE,
         br(),
         # file
         shiny::textOutput(ns("compara_file")),
@@ -820,8 +818,8 @@ comparaUI <- function(id, label="Cross species comparison") {
 
     shiny::fluidRow(
       shinydashboard::box(
-        width = 6, solidHeader = FALSE
-        # DT::dataTableOutput("ht_click_table")
+        width = 12, solidHeader = FALSE,
+        DT::dataTableOutput("ht_click_table")
       )
     )
 
@@ -862,7 +860,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
         input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
       )
-      if (file.exists(csps_file)) {
+      if (!file.exists(csps_file)) {
         CSPS <- readRDS(file = file.path(COMPARA_DIR, csps_file))
       } else {
         warning("switching species order")
@@ -944,10 +942,10 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         output$main_heatmap <- renderPlot({
           shiny_env$ht = draw(cor_heatmap)
           shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
-        }, width = 800, height = 800)
+        }, width = 750, height = 750)
 
         # clicked pair
-        output$ht_click_content = renderText({
+        output$ht_click_content <- renderText({
           if (is.null(input$ht_click)) {
             "Not selected."
           } else {
@@ -965,14 +963,13 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
               rn = rownames(m)[row_index]
               cn = colnames(m)[column_index]
               olg = CSPS$overlap_genes[[rn]][[cn]]
-              print(rn); print(cn); print(olg)
               if (!is.null(olg)) {
                 ng = length(olg)
               } else {
                 ng = ""
               }
               print(sprintf("number of genes: %s", ng))
-              gglue::glue(
+              glue::glue(
                 "{rn} (row {row_index})",
                 "{cn} (column {column_index})",
                 "value: {v}",
@@ -981,67 +978,66 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
               )
             } else { "Not selected." }
           }
-
-          # table for clicked pair
-          output$ht_click_table <- DT::renderDataTable({
-
-            req(input$ht_click)
-            pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
-            ht = shiny_env$ht
-            pos = selectPosition(
-              ht, mark = FALSE, pos = pos1,
-              verbose = FALSE, ht_pos = shiny_env$ht_pos
-            )
-            if (!is.null(pos)) {
-              row_index = pos[1, "row_index"]
-              column_index = pos[1, "column_index"]
-              m = ht@ht_list[[1]]@matrix
-              v = m[row_index, column_index]
-              rn = rownames(m)[row_index]
-              cn = colnames(m)[column_index]
-              if(!is.na(CSPS$overlap_genes[[rn]][[cn]])) {
-
-                genes1 = CSPS$overlap_genes[[rn]][[cn]]
-                genes2 = CSPS$overlap_genes[[rn]][[cn]]
-
-                #genes1_clean <- str_remove(genes1,"\\.[0-9]")
-                #genes2_clean <- str_remove(genes2,"\\.[0-9]")
-
-                ids1 <- match(genes1_clean, gann1[[1]])
-                ids2 <- match(genes2_clean, gann2[[1]])
-
-                gdt <- cbind.data.frame(gann1[ids1], gann2[ids2])
-                setDT(gdt)
-                add_col_names <- c("pfam","bbh")
-                gdtcolnames <- c(config_id1,add_col_names,config_id2,add_col_names)
-                setnames(gdt, gdtcolnames)
-
-                gdt[,tf:="no"]
-                gdt[gdt[[1]] %in% tfs_1[[1]], tf:="yes"]
-                gdt[gdt[[5]] %in% tfs_2[[1]], tf:="yes"]
-                gdt[,tf:=factor(tf,levels=c("yes","no"))]
-                setorder(gdt,tf)
-                datatable(gdt) %>% formatStyle(
-                  'tf',
-                  target = 'row',
-                  backgroundColor = styleEqual(c("yes","no"), c("AntiqueWhite","white"))
-                )
-
-              } else {
-                NULL
-              }
-            } else { NULL }
-          },
-          rownames = FALSE, selection = list(mode = 'none'),
-          options = list(
-            dom = 'tp', scrollX = TRUE, ordering = FALSE, pageLength = 50
-          ))
-
         })
+
+        # table for clicked pair
+        output$ht_click_table <- DT::renderDataTable({
+
+          req(input$ht_click)
+          pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+          ht = shiny_env$ht
+          pos = selectPosition(
+            ht, mark = FALSE, pos = pos1,
+            verbose = FALSE, ht_pos = shiny_env$ht_pos
+          )
+          if (!is.null(pos)) {
+            row_index = pos[1, "row_index"]
+            column_index = pos[1, "column_index"]
+            m = ht@ht_list[[1]]@matrix
+            v = m[row_index, column_index]
+            rn = rownames(m)[row_index]
+            cn = colnames(m)[column_index]
+            if(!is.na(CSPS$overlap_genes[[rn]][[cn]])) {
+
+              genes1 = CSPS$overlap_genes[[rn]][[cn]]
+              genes2 = CSPS$overlap_genes[[rn]][[cn]]
+
+              #genes1_clean <- str_remove(genes1,"\\.[0-9]")
+              #genes2_clean <- str_remove(genes2,"\\.[0-9]")
+
+              ids1 <- match(genes1_clean, gann1[[1]])
+              ids2 <- match(genes2_clean, gann2[[1]])
+
+              gdt <- cbind.data.frame(gann1[ids1], gann2[ids2])
+              setDT(gdt)
+              add_col_names <- c("pfam","bbh")
+              gdtcolnames <- c(config_id1,add_col_names,config_id2,add_col_names)
+              setnames(gdt, gdtcolnames)
+
+              gdt[,tf:="no"]
+              gdt[gdt[[1]] %in% tfs1[[1]], tf:="yes"]
+              gdt[gdt[[5]] %in% tfs2[[1]], tf:="yes"]
+              gdt[,tf:=factor(tf,levels=c("yes","no"))]
+              setorder(gdt,tf)
+              datatable(gdt) %>% formatStyle(
+                'tf',
+                target = 'row',
+                backgroundColor = styleEqual(c("yes","no"), c("AntiqueWhite","white"))
+              )
+
+            } else {
+              NULL
+            }
+          } else { NULL }
+        },
+        rownames = FALSE, selection = list(mode = 'none'),
+        options = list(
+          dom = 'tp', scrollX = TRUE, ordering = FALSE, pageLength = 50
+        ))
+
     }
 
       # TO-DOs:
-      # genes with fc
       # gene annotations tables
 
       # Return the reactive
