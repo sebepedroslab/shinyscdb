@@ -790,10 +790,7 @@ comparaUI <- function(id, label="Cross species comparison") {
       shinydashboard::box(
         "Your search:", width=6, solidHeader = TRUE,
         br(),
-        # withSpinner(
         tableOutput(ns("compara_info")),
-        #   type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-        # ),
         h5("When you change parameters, regenerate results by clicking 'Compare species' button on the sidebar.")
       )
     ),
@@ -817,7 +814,7 @@ comparaUI <- function(id, label="Cross species comparison") {
         shiny::textOutput(ns("compara_file")),
         br(),
         # genes
-        # verbatimTextOutput(ns("ht_click_content"))
+        verbatimTextOutput(ns("ht_click_content"))
       )
     ),
 
@@ -861,26 +858,26 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
       )
 
       # construct name of the file to load form the input parameters
-      CSPS <- tryCatch({
+      csps_file <- sprintf(
+        "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
+        input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
+      )
+      if (file.exists(csps_file)) {
+        CSPS <- readRDS(file = file.path(COMPARA_DIR, csps_file))
+      } else {
+        warning("switching species order")
+        config_id1_orig <- config_id1
+        config_id1 <- config_id2
+        config_id2 <- config_id1_orig
         csps_file <- sprintf(
           "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
           input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
         )
-        readRDS(file = file.path(COMPARA_DIR, csps_file))
-      }, error = function(e) {
-        warning("switching species order")
-        csps_file <- sprintf(
-          "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
-          input$level, input$orthos, config_id2, config_id1, input$metric, as.numeric(input$fcthrs)
-        )
-        config_id1_orig <- config_id1
-        config_id1 <- config_id2
-        config_id2 <- config_id1_orig
-        tryCatch(
+        CSPS <- tryCatch(
           readRDS(file = file.path(COMPARA_DIR, csps_file)),
           error = function(e) NULL
         )
-      })
+      }
 
       if (!is.null(CSPS)) {
         output$compara_file <- shiny::renderText(sprintf("%s; class %s", csps_file, class(CSPS)))
@@ -912,6 +909,11 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         ann1 <- unique(cann1[,..ann_cols])[,cell_type:=paste(config_id1,cell_type,sep="|")]
         ann2 <- unique(cann2[,..ann_cols])[,cell_type:=paste(config_id2,cell_type,sep="|")]
 
+        print(sprintf("species1: %s (rows)", config_id1))
+        print(sprintf("species1 cell types: %s (rows)", nrow(ann1)))
+        print(sprintf("species2: %s (columns)", config_id2))
+        print(sprintf("species2 cell types: %s (rows)", nrow(ann2)))
+
         # table with summary of search params
         compara_info_dt <- data.table(
           "clustering level" = input$level,
@@ -925,6 +927,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         setnames(compara_info_dt, c("parameter","value"))
         output$compara_info <- renderTable(compara_info_dt)
 
+        print(sprintf("dim: %s x %s", nrow(CSPS$cor_matrix), ncol(CSPS$cor_matrix)))
 
         # non-interactive heatmap
         cor_heatmap <- csps_plot_annotated_matrix(
@@ -945,7 +948,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
 
         # clicked pair
         output$ht_click_content = renderText({
-          if(is.null(input$ht_click)) {
+          if (is.null(input$ht_click)) {
             "Not selected."
           } else {
             pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
