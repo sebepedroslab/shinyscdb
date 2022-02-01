@@ -860,7 +860,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         "csps_icc.%s.%s.%s-%s.%s.fc%.2f.rds",
         input$level, input$orthos, config_id1, config_id2, input$metric, as.numeric(input$fcthrs)
       )
-      if (!file.exists(csps_file)) {
+      if (file.exists(csps_file)) {
         CSPS <- readRDS(file = file.path(COMPARA_DIR, csps_file))
       } else {
         warning("switching species order")
