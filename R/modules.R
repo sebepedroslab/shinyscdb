@@ -762,7 +762,10 @@ comparaUI <- function(id, label="Cross species comparison") {
             "weighted pearson correlation" = "wpearson",
             "weighted spearman correlation" = "wspearman",
             "Jaccard index" = "jaccard",
-            "shafer index" = "shaferindex"
+            "Shafer index" = "shaferindex",
+            "Kullback–Leibler divergence" = "kld",
+            "Jensen–Shannon divergence" = "jsd",
+            "orthogonal least squares" = "ols"
           ), multiple = FALSE
         ),
 
@@ -814,10 +817,14 @@ comparaUI <- function(id, label="Cross species comparison") {
         shiny::textOutput(ns("compara_file")),
         br(),
         # genes
-        withSpinner(
-          verbatimTextOutput(ns("ht_click_content")),
-          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-        )
+        # verbatimTextOutput(ns("ht_click_content"))
+      )
+    ),
+
+    shiny::fluidRow(
+      shinydashboard::box(
+        width = 6, solidHeader = FALSE
+        # DT::dataTableOutput("ht_click_table")
       )
     )
 
@@ -869,107 +876,170 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         config_id1_orig <- config_id1
         config_id1 <- config_id2
         config_id2 <- config_id1_orig
-        readRDS(file = file.path(COMPARA_DIR, csps_file))
-      })
-      output$compara_file <- shiny::renderText(sprintf("%s; class %s", csps_file, class(CSPS)))
-
-      # annotation files for species
-      INPUT_DIR1 <- file.path(
-        conf[['default']]$data_dir,
-        conf[[config_id1]]$data_subdir
-      )
-      cann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$ann_file)
-      cann1 <- fread(cann1_file)
-      gann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$gene_annot_file)
-      gann1 <- fread(gann1_file)
-
-      INPUT_DIR2 <- file.path(
-        conf[['default']]$data_dir,
-        conf[[config_id2]]$data_subdir
-      )
-      cann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$ann_file)
-      cann2 <- fread(cann2_file)
-      gann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$gene_annot_file)
-      gann2 <- fread(gann2_file)
-
-      ann_cols <- c("cell_type","color") # this should be interactively selected, but for now only celltypes
-      ann1 <- unique(cann1[,..ann_cols])[,cell_type:=paste(config_id1,cell_type,sep="|")]
-      ann2 <- unique(cann2[,..ann_cols])[,cell_type:=paste(config_id2,cell_type,sep="|")]
-
-      # table with summary of search params
-      compara_info_dt <- data.table(
-        "clustering level" = input$level,
-        "orthologs" = input$orthos,
-        "species1" = config_id1,
-        "species2" = config_id2,
-        "similarity metric" = input$metric,
-        "fc_threshold" = as.numeric(input$fcthrs),
-        "variable genes" = length(CSPS$var_genes)
-      ) %>% t() %>% as.data.table(keep.rownames = "parameter")
-      setnames(compara_info_dt, c("parameter","value"))
-      output$compara_info <- renderTable(compara_info_dt)
-
-
-      # non-interactive heatmap
-      cor_heatmap <- csps_plot_annotated_matrix(
-        mat = CSPS$cor_matrix,
-        name = CSPS$method,
-        #row_annot = ann1, col_annot = ann2,
-        fontsize = 8
-      )
-      output$cor_hmap_simple <- shiny::renderPlot({
-        ComplexHeatmap::draw(cor_heatmap)
+        tryCatch(
+          readRDS(file = file.path(COMPARA_DIR, csps_file)),
+          error = function(e) NULL
+        )
       })
 
-      # interactive heatmap
-      output$main_heatmap <- renderPlot({
-        shiny_env$ht = draw(cor_heatmap)
-        shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
-      }, width = 800, height = 800)
+      if (!is.null(CSPS)) {
+        output$compara_file <- shiny::renderText(sprintf("%s; class %s", csps_file, class(CSPS)))
 
-      output$ht_click_content = renderText({
-        if(is.null(input$ht_click)) {
-          "Not selected."
-        } else {
-          pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
-          ht = shiny_env$ht
-          pos = selectPosition(
-            ht, mark = FALSE, pos = pos1,
-            verbose = FALSE, ht_pos = shiny_env$ht_pos
-          )
-          if (!is.null(pos)) {
-            row_index = pos[1, "row_index"]
-            column_index = pos[1, "column_index"]
-            m = ht@ht_list[[1]]@matrix
-            v = m[row_index, column_index]
-            rn = rownames(m)[row_index]
-            cn = colnames(m)[column_index]
-            olg = CSPS$overlap_genes[[1]][[1]]
-            if (!is.null(olg)) {
-              g1 <- CSPS$overlap_genes[[rn]][[cn]][[1]]
-              g2 <- CSPS$overlap_genes[[rn]][[cn]][[2]]
-              genes1 = paste(g1, collapse = "\n")
-              genes2 = paste(g2, collapse = "\n")
-              ng = length(g1)
-            } else {
-              genes1 = ""; genes1 = ""; ng = ""
-            }
-            glue::glue(
-              "{rn} (row {row_index})",
-              "{cn} (column {column_index})",
-              "value: {v}",
-              "gene pairs: {ng}",
-              .sep = "\n")
-          } else { "Not selected." }
-        }
+        # annotation files for species
+        INPUT_DIR1 <- file.path(
+          conf[['default']]$data_dir,
+          conf[[config_id1]]$data_subdir
+        )
+        cann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$ann_file)
+        cann1 <- fread(cann1_file)
+        gann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$gene_annot_file)
+        gann1 <- fread(gann1_file)
+        tfs1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$tf_annot_file)
+        tfs1 <- fread(tfs1_file)
 
-        # TO-DOs:
-        # gene annotations tables
-        # genes with fc
-        # add cell type annotations to heatmap
+        INPUT_DIR2 <- file.path(
+          conf[['default']]$data_dir,
+          conf[[config_id2]]$data_subdir
+        )
+        cann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$ann_file)
+        cann2 <- fread(cann2_file)
+        gann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$gene_annot_file)
+        gann2 <- fread(gann2_file)
+        tfs2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$tf_annot_file)
+        tfs2 <- fread(tfs2_file)
 
-      })
+        ann_cols <- c("cell_type","color") # this should be interactively selected, but for now only cell types
+        ann1 <- unique(cann1[,..ann_cols])[,cell_type:=paste(config_id1,cell_type,sep="|")]
+        ann2 <- unique(cann2[,..ann_cols])[,cell_type:=paste(config_id2,cell_type,sep="|")]
 
+        # table with summary of search params
+        compara_info_dt <- data.table(
+          "clustering level" = input$level,
+          "orthologs" = input$orthos,
+          "species1" = config_id1,
+          "species2" = config_id2,
+          "similarity metric" = input$metric,
+          "fc_threshold" = as.numeric(input$fcthrs),
+          "variable genes" = length(CSPS$var_genes)
+        ) %>% t() %>% as.data.table(keep.rownames = "parameter")
+        setnames(compara_info_dt, c("parameter","value"))
+        output$compara_info <- renderTable(compara_info_dt)
+
+
+        # non-interactive heatmap
+        cor_heatmap <- csps_plot_annotated_matrix(
+          mat = CSPS$cor_matrix,
+          name = CSPS$method,
+          row_annot = ann1, col_annot = ann2,
+          fontsize = 8
+        )
+        output$cor_hmap_simple <- shiny::renderPlot({
+          ComplexHeatmap::draw(cor_heatmap)
+        })
+
+        # interactive heatmap
+        output$main_heatmap <- renderPlot({
+          shiny_env$ht = draw(cor_heatmap)
+          shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
+        }, width = 800, height = 800)
+
+        # clicked pair
+        output$ht_click_content = renderText({
+          if(is.null(input$ht_click)) {
+            "Not selected."
+          } else {
+            pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+            ht = shiny_env$ht
+            pos = selectPosition(
+              ht, mark = FALSE, pos = pos1,
+              verbose = FALSE, ht_pos = shiny_env$ht_pos
+            )
+            if (!is.null(pos)) {
+              row_index = pos[1, "row_index"]
+              column_index = pos[1, "column_index"]
+              m = ht@ht_list[[1]]@matrix
+              v = m[row_index, column_index]
+              rn = rownames(m)[row_index]
+              cn = colnames(m)[column_index]
+              olg = CSPS$overlap_genes[[rn]][[cn]]
+              print(rn); print(cn); print(olg)
+              if (!is.null(olg)) {
+                ng = length(olg)
+              } else {
+                ng = ""
+              }
+              print(sprintf("number of genes: %s", ng))
+              gglue::glue(
+                "{rn} (row {row_index})",
+                "{cn} (column {column_index})",
+                "value: {v}",
+                "gene pairs: {ng}",
+                .sep = "\n"
+              )
+            } else { "Not selected." }
+          }
+
+          # table for clicked pair
+          output$ht_click_table <- DT::renderDataTable({
+
+            req(input$ht_click)
+            pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+            ht = shiny_env$ht
+            pos = selectPosition(
+              ht, mark = FALSE, pos = pos1,
+              verbose = FALSE, ht_pos = shiny_env$ht_pos
+            )
+            if (!is.null(pos)) {
+              row_index = pos[1, "row_index"]
+              column_index = pos[1, "column_index"]
+              m = ht@ht_list[[1]]@matrix
+              v = m[row_index, column_index]
+              rn = rownames(m)[row_index]
+              cn = colnames(m)[column_index]
+              if(!is.na(CSPS$overlap_genes[[rn]][[cn]])) {
+
+                genes1 = CSPS$overlap_genes[[rn]][[cn]]
+                genes2 = CSPS$overlap_genes[[rn]][[cn]]
+
+                #genes1_clean <- str_remove(genes1,"\\.[0-9]")
+                #genes2_clean <- str_remove(genes2,"\\.[0-9]")
+
+                ids1 <- match(genes1_clean, gann1[[1]])
+                ids2 <- match(genes2_clean, gann2[[1]])
+
+                gdt <- cbind.data.frame(gann1[ids1], gann2[ids2])
+                setDT(gdt)
+                add_col_names <- c("pfam","bbh")
+                gdtcolnames <- c(config_id1,add_col_names,config_id2,add_col_names)
+                setnames(gdt, gdtcolnames)
+
+                gdt[,tf:="no"]
+                gdt[gdt[[1]] %in% tfs_1[[1]], tf:="yes"]
+                gdt[gdt[[5]] %in% tfs_2[[1]], tf:="yes"]
+                gdt[,tf:=factor(tf,levels=c("yes","no"))]
+                setorder(gdt,tf)
+                datatable(gdt) %>% formatStyle(
+                  'tf',
+                  target = 'row',
+                  backgroundColor = styleEqual(c("yes","no"), c("AntiqueWhite","white"))
+                )
+
+              } else {
+                NULL
+              }
+            } else { NULL }
+          },
+          rownames = FALSE, selection = list(mode = 'none'),
+          options = list(
+            dom = 'tp', scrollX = TRUE, ordering = FALSE, pageLength = 50
+          ))
+
+        })
+    }
+
+      # TO-DOs:
+      # genes with fc
+      # gene annotations tables
 
       # Return the reactive
       # return()

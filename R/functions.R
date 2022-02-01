@@ -1313,13 +1313,17 @@ csps_plot_annotated_matrix = function(
 
   # get row annotations
   # by default, get labels
-  ha_row = ComplexHeatmap::HeatmapAnnotation(lab = anno_text(row_labels, which = "row", gp = gpar(fontsize = fontsize), just = "left"), which = "row")
+  ha_row_right = ComplexHeatmap::HeatmapAnnotation(
+    lab = anno_text(row_labels, which = "row", gp = gpar(fontsize = fontsize), just = "left"),
+    which = "row"
+  )
   # add coloring info if available
   if (!is.null(row_annot)) {
     # ensure that row_annot is a list of dataframes
     if ("data.frame" %in% class(row_annot)) { row_annot = list(row_annot) }
     # loop through list of dataframes, adding colors
     for (ni in 1:length(row_annot)) {
+      class(row_annot[[ni]]) <- "data.frame"
       # get unique named list of colors
       row_annot_u = unique(row_annot[[ni]])
       row_annot_cols = row_annot_u[,2]
@@ -1327,24 +1331,30 @@ csps_plot_annotated_matrix = function(
       # get vector of categories
       row_annot_cats = row_annot[[ni]][,1]
       # add new annotation track
-      ha_row = c(ha_row,ComplexHeatmap::HeatmapAnnotation(
+      ha_row_left <- ComplexHeatmap::HeatmapAnnotation(
         clusters = row_annot_cats,
         col = list(clusters = row_annot_cols),
         which = "row",
         show_annotation_name = FALSE,
-        show_legend = row_annot_legend))
+        show_legend = row_annot_legend
+      )
+      ha_row = c(ha_row_left, ha_row_right)
     }
   }
 
   # get column annotations
   # by default, get labels
-  ha_col = ComplexHeatmap::HeatmapAnnotation(lab = anno_text(col_labels, which = "column", gp = gpar(fontsize = fontsize), just = "right"), which = "column")
+  ha_col_bottom = ComplexHeatmap::HeatmapAnnotation(
+    lab = anno_text(col_labels, which = "column", gp = gpar(fontsize = fontsize), just = "right"),
+    which = "column"
+  )
   # add coloring info if available
   if (!is.null(col_annot)) {
     # ensure that col_annot is a list of dataframes
     if ("data.frame" %in% class(col_annot)) { col_annot = list(col_annot) }
     # loop through list of dataframes, adding colors
     for (ni in 1:length(col_annot)) {
+      class(col_annot[[ni]]) <- "data.frame"
       # get unique named list of colors
       col_annot_u = unique(col_annot[[ni]])
       col_annot_cols = col_annot_u[,2]
@@ -1352,12 +1362,14 @@ csps_plot_annotated_matrix = function(
       # get vector of categories
       col_annot_cats = col_annot[[ni]][,1]
       # add new annotation track
-      ha_col = c(ha_col,ComplexHeatmap::HeatmapAnnotation(
+      ha_col_top <- ComplexHeatmap::HeatmapAnnotation(
         clusters = col_annot_cats,
         col = list(clusters = col_annot_cols),
         which = "column",
         show_annotation_name = FALSE,
-        show_legend = col_annot_legend))
+        show_legend = col_annot_legend
+      )
+      ha_col = c(ha_col_bottom,ha_col_top)
     }
   }
 
@@ -1411,11 +1423,11 @@ csps_plot_annotated_matrix = function(
     show_row_names = FALSE,
     show_column_names = FALSE,
     # column annotations
-    top_annotation = ha_col,
-    bottom_annotation = ha_col,
+    top_annotation = ha_col_top,
+    bottom_annotation = ha_col_bottom,
     # row annotations
-    left_annotation = ha_row,
-    right_annotation = ha_row
+    left_annotation = ha_row_left,
+    right_annotation = ha_row_right
   )
 
   # return heatmap object
