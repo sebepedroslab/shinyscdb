@@ -456,15 +456,11 @@ genes_select_names <- function(dt,rid) {
 }
 
 #' Plot multigene heatmap to show expression of selected genes
-mgenes_hmap_height <- function(nmat, gids, annt, min_expression_fc = NULL, max_expression_fc = NULL){
+mgenes_hmap_height <- function(nmat, gids, annt, min_expression_fc = NULL){
   tryCatch({
     gs <- intersect(gids,rownames(nmat))
-    # if (!is.null(max_expression_fc)) {
-    #   flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
-    #   gs <- gs[flt]
-    # }
     if (!is.null(min_expression_fc)) {
-      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
+      flt <- apply(nmat[gs,], 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
       gs <- gs[flt]
     }
     message("Length: ",length(gs))
@@ -477,7 +473,7 @@ mgenes_hmap_height <- function(nmat, gids, annt, min_expression_fc = NULL, max_e
 }
 mgenes_hmap <- function(
   nmat, annt, gids,
-  min_expression_fc = NULL,  max_expression_fc = NULL, # gene filtering
+  min_expression_fc = NULL,  # gene filtering
   scale_expression_fc = 4, # trim expression values, i.e. set anything > scale_expression_fc to this value
   heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
   ct_table, cell_type_palette = NULL, cluster_genes = TRUE,
@@ -503,11 +499,6 @@ mgenes_hmap <- function(
     flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
     hm <- hm[flt,]
   }
-  # if (!is.null(max_expression_fc)) {
-  #   message("Filtering genes by max FC")
-  #   flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]>max_expression_fc))
-  #   hm <- hm[flt,]
-  # }
 
   # expression matrix
   hm <- pmin(hm,scale_expression_fc)
@@ -523,8 +514,7 @@ mgenes_hmap <- function(
   }
 
   # heatmap colors
-  if (is.null(min_expression_fc)) min_expression_fc=0
-  if (is.null(max_expression_fc)) max_expression_fc=5
+  if (is.null(min_expression_fc)) min_expression_fc=0; max_expression_fc=5
   max_expression_fc <- pmin(scale_expression_fc, max_expression_fc)
   message("Scaling colors for heatmap between ", min_expression_fc , " and ", max_expression_fc)
   col_fun = circlize::colorRamp2(

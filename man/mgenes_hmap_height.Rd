@@ -4,13 +4,7 @@
 \alias{mgenes_hmap_height}
 \title{Plot multigene heatmap to show expression of selected genes}
 \usage{
-mgenes_hmap_height(
-  nmat,
-  gids,
-  annt,
-  min_expression_fc = NULL,
-  max_expression_fc = NULL
-)
+mgenes_hmap_height(nmat, gids, annt, min_expression_fc = NULL)
 }
 \description{
 Plot multigene heatmap to show expression of selected genes

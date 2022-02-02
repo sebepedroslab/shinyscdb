@@ -307,18 +307,12 @@ multiGeneUI <- function(id, label="Multi gene expression") {
           column(
             width=3,
             sliderInput(
-              inputId = ns("max_expression_fc"), label="Filter genes by max FC:",
-              min=0, max=5, step=0.1, round=FALSE, value=5, width = "100%"
-            )
-          ),
-          column(
-            width=3,
-            sliderInput(
               inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
               min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
             )
           ),
           column(width=1, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
+          column(width=1),
           column(width=1, downloadButton(ns("download_genes_hmap"),"Download heatmap"))
         ),
         withSpinner(
@@ -419,7 +413,6 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
         tryCatch(mgenes_hmap(
           nmat=MCFP, annt=GENE_ANNT, gids=selected_genes$values,
           min_expression_fc=input$min_expression_fc,
-          max_expression_fc=input$max_expression_fc,
           scale_expression_fc=pmax(input$scale_expression_fc,input$min_expression_fc),
           cluster_genes=input$clustergenes,
           heatmap_colors=heatmap_colors,
@@ -436,8 +429,7 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       hmap_height <- function() {
         hmh$ng <- mgenes_hmap_height(
           nmat = MCFP, gids = selected_genes$values, annt=GENE_ANNT,
-          min_expression_fc=input$min_expression_fc,
-          max_expression_fc=input$max_expression_fc
+          min_expression_fc=input$min_expression_fc
         )
         if (hmh$ng<5) {
           sf <- 60
