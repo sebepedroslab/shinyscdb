@@ -91,33 +91,50 @@ summarize_cell_annotation <- function(annt) {
 
 #' Plot an expression barplots of a gene
 #' @param nmat mc_fp matrix
-#' @param umat sc UMI matrix
+#' @param umat metacell UMI matrix
+#' @param cttable metacell annotation table
+#' @param mdnorm normalize?
+#' @param annt gene annotations table
+#' @param order_by `"metacell"` (numerically) or `"cell_type"` (as ordeerd in the annotation file)
+#' @param ctpalette custom colours; if `NULL`, colors taken from metacell anotation file
 sg_plot  <- function(
   nmat, umat, cttable, gid=NULL, sid=NULL,
-  mdnorm, annt, ctpalette=NULL, mc_label_size=9
+  mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, mc_label_size=9
 ){
+  # print("begin sg_plot")
+  # print(head(cttable))
+  # print("...")
+  ctb <- setDT(copy(cttable))
+
   # selected gene
   if (all(is.null(gid),is.null(sid)))
     stop("Need to specify either gid or sid!")
   if (is.null(gid))
     gid <- as.character(annt[search_id==sid,gene_id])
   # selected gene umi count
-  gxp <- as.numeric(umat[gid,])*10
-  if(mdnorm==TRUE)
-    gxp <- log2(gxp/median(gxp))
-  # selected gene lfc
-  gxl <- as.numeric(nmat[gid,])
-
-  gdata <- data.table(
-    metacells=as.numeric(colnames(umat)),
-    cell_type=cttable$cell_type,
-    lfp=gxp, lfc=gxl
+  gxp <- tryCatch(
+    structure(as.numeric(umat[gid,])*10, names=colnames(umat)),
+    error = function(e) 0
   )
+  if (mdnorm==TRUE)
+    gxp <- structure(log2(gxp/median(gxp)), names=colnames(umat))
+  # print(sprintf("umi counts: %s", paste(head(gxp),collapse = ",")))
+  # selected gene lfc
+  gxl <- tryCatch(
+    structure(as.numeric(nmat[gid,]), names=colnames(nmat)),
+    error = function(e) 0
+  )
+  # print(sprintf("lfc: %s", paste(head(gxl),collapse = ",")))
+  gdata <- data.table(
+    metacell=colnames(umat),
+    cell_type=ctb[match(colnames(umat),mc)]$cell_type
+  )[,lfp:=gxp[metacell]][,lfc:=gxl[metacell]]
 
   # cell type colours
   if (is.null(ctpalette)) {
-    ctpalette <- unique(cttable$color)
-    names(ctpalette) <- unique(cttable$cell_type)
+    ctpalette_dt <- unique(ctb[,.(cell_type,color)])
+    ctpalette <- ctpalette_dt$color
+    names(ctpalette) <- ctpalette_dt$cell_type
   }
 
   # gene names
@@ -128,13 +145,34 @@ sg_plot  <- function(
   if (gene_name!=gene_hsap)
     bptitle <- paste(bptitle, gene_hsap)
 
+  # order
+  # if (all(gdata$cell_type %in% names(ctpalette))) {
+  #   gdata[, cell_type := factor(cell_type, levels=names(ctpalette))]
+  # }
+  if (order_by=="metacell") {
+    order_levels <- as.character(sort(as.integer(cttable$mc)))
+  } else if (order_by=="cell_type") {
+    order_levels <- as.character(cttable$mc)
+  }
+  # print(sprintf("order: %s", paste(order_levels, collapse = " ")))
+  if (all(gdata$metacell %in% order_levels)) {
+    gdata[,metacell := factor(metacell, levels=order_levels)]
+  } else {
+    warning(sprintf(
+      "Some metacells could not be mapped to levels from annotaion file: %s",
+      paste(gdata$metacell[!gdata$metacell %in% order_levels], collapse = ", ")
+    ))
+    gdata[,metacell := factor(metacell)]
+  }
+  setorder(gdata, metacell)
+
   # umi frac barplot
   max_label <- sprintf(" %.2f", max(gxp))
   pst_x_max <- which( gxp == max(gxp) ) ; pst_x_max <- pst_x_max[1]
 
   gp_umi_frac <- ggplot2::ggplot(
       data=gdata,
-      aes(x=factor(metacells), y=lfp, fill=factor(cell_type,levels=names(ctpalette)))
+      aes(x=metacell, y=lfp, fill=cell_type)
     ) +
     ggplot2::geom_bar(stat="identity", colour="grey") +
     ggplot2::geom_blank(aes(y=1.2*lfp)) +
@@ -151,6 +189,7 @@ sg_plot  <- function(
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
+      axis.ticks.length.x = unit(0, "cm"),
       text = element_text(size=18)
     )
 
@@ -160,7 +199,7 @@ sg_plot  <- function(
 
   gp_log_frac <- ggplot2::ggplot(
       data=gdata,
-      aes(x=factor(metacells), y=lfc, fill=factor(cell_type,levels=names(ctpalette)))
+      aes(x=metacell, y=lfc, fill=cell_type)
     ) +
     ggplot2::geom_bar(stat="identity", colour="grey") +
     ggplot2::geom_blank(aes(y=1.2*lfc)) +
@@ -177,6 +216,7 @@ sg_plot  <- function(
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
+      axis.ticks.length.x = unit(0, "cm"),
       text = element_text(size=18)
     )
   ggp <- egg::ggarrange(gp_umi_frac, gp_log_frac, nrow=2, ncol=1)
@@ -513,6 +553,9 @@ mgenes_hmap <- function(
     hm <- hm[gord,]
   }
 
+  # matrix
+  hmat <- cbind(hm)
+
   # heatmap colors
   if (is.null(min_expression_fc)) min_expression_fc=0; max_expression_fc=5
   max_expression_fc <- pmin(scale_expression_fc, max_expression_fc)
@@ -524,23 +567,33 @@ mgenes_hmap <- function(
 
   # cell type colours
   if (is.null(cell_type_palette)) {
-    message("Colors for cell types")
-    cell_type_palette <- ct_table$color
-    names(cell_type_palette) <- ct_table$cell_type
+    ctpalette_dt <- unique(ct_table[,.(cell_type,color)])
+    cell_type_palette <- structure(ctpalette_dt$color, names = ctpalette_dt$cell_type)
   }
-  cell_types <- names(cell_type_palette)
-  cell_colours <- unique(cell_type_palette)
-  names(cell_colours) <- unique(names(cell_type_palette))
+  # all cell types and colors
+  cell_types <- ct_table[match(colnames(hm),mc)]$cell_type
+  cell_colours <- cell_type_palette[cell_types]
 
   # cell type annotiation bar
   message("Cell types annotations")
-  ct_ann <- ComplexHeatmap::columnAnnotation(
-    ct = cell_types, col = list(ct=cell_colours), height = mc_annotaion_height,
-    gp = gpar(fontsize = mcid_font_size), border = FALSE,
-    show_annotation_name = FALSE, show_legend = FALSE
-  )
+  ncts_ann <- length(cell_types)
+  # print(sprintf("length col ann %s", ncts_ann))
+  ncts_hm <- ncol(hmat)
+  # print(sprintf("ncol hmat %s", ncts_hm))
+  if (ncts_hm == ncts_ann) {
+    ct_ann <- ComplexHeatmap::columnAnnotation(
+      ct = cell_types, col = list(ct=cell_colours), height = mc_annotaion_height,
+      gp = gpar(fontsize = mcid_font_size), border = FALSE,
+      show_annotation_name = FALSE, show_legend = FALSE
+    )
+  } else {
+    ct_ann <- ComplexHeatmap::columnAnnotation(
+      anno_empty(which = "column")
+    )
+  }
 
   # gene annotation
+  message("Gene annotations")
   gs <- rownames(hm)
   annid <- match(gs,annt[[1]])
   ganns <- annt[annid][[3]]
@@ -561,7 +614,7 @@ mgenes_hmap <- function(
   # expression heatmap
   message("Building heatmap")
   ht1 <- ComplexHeatmap::Heatmap(
-    cbind(hm), name = "expression FC", show_heatmap_legend = TRUE,
+    hmat, name = "expression FC", show_heatmap_legend = TRUE,
     cluster_columns = FALSE, cluster_rows = FALSE,
     #row_labels = row_labels[rownames(hm)],
     show_column_dend = FALSE, show_row_dend = FALSE,

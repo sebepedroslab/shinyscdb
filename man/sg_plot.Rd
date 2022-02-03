@@ -10,8 +10,9 @@ sg_plot(
   cttable,
   gid = NULL,
   sid = NULL,
-  mdnorm,
+  mdnorm = FALSE,
   annt,
+  order_by = "metacell",
   ctpalette = NULL,
   mc_label_size = 9
 )
@@ -19,7 +20,17 @@ sg_plot(
 \arguments{
 \item{nmat}{mc_fp matrix}
 
-\item{umat}{sc UMI matrix}
+\item{umat}{metacell UMI matrix}
+
+\item{cttable}{metacell annotation table}
+
+\item{mdnorm}{normalize?}
+
+\item{annt}{gene annotations table}
+
+\item{order_by}{\code{"metacell"} (numerically) or \code{"cell_type"} (as ordeerd in the annotation file)}
+
+\item{ctpalette}{custom colours; if \code{NULL}, colors taken from metacell anotation file}
 }
 \description{
 Plot an expression barplots of a gene

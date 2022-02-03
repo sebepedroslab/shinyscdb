@@ -143,9 +143,36 @@ singleGeneUI <- function(id, label="Single gene expression") {
     shiny::fluidRow(
       shinydashboard::box(
         title="", width=12, height = 900, solidHeader=TRUE,
-        withSpinner(
-          shiny::plotOutput(ns("gene_barplot"), height = 700),
-          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+        shiny::fluidRow(
+          shiny::column(
+            width=12,
+            withSpinner(
+              shiny::plotOutput(ns("gene_barplot"), height = 700),
+              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            )
+          )
+        ),
+        shiny::fluidRow(
+          shiny::column(
+            width = 3,
+            shiny::selectInput(
+              inputId=ns("order_bars_by"),
+              label="Order bars by",
+              choices=c(
+                "cell type" = "cell_type",
+                "metacell" = "metacell"
+              ),
+              selectize = FALSE
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::sliderInput(
+              inputId=ns("mc_label_size"),
+              label = "Metacell lables size",
+              min = 0, max = 10, step = 1, value = 5
+            )
+          )
         )
       )
     )
@@ -201,11 +228,15 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         GENE_ANNT[search_id==input$search_id, 1:(ncol(GENE_ANNT)-1)])
 
       # barplot of gene umifrac
+      cttable = as.data.frame(CELL_ANNT)
+      print("input to sg_plot")
+      print(head(cttable))
+      print("...")
       output$gene_barplot <- shiny::renderPlot(
         sg_plot(
-          nmat=MCFP, umat=UMIFRAC, cttable=CELL_ANNT,
+          nmat=MCFP, umat=UMIFRAC, cttable=cttable, order_by=input$order_bars_by,
           sid=input$search_id, mdnorm=FALSE, annt=GENE_ANNT,
-          mc_label_size=0
+          mc_label_size=input$mc_label_size
         ),
         height = 600
       )
@@ -297,6 +328,7 @@ multiGeneUI <- function(id, label="Multi gene expression") {
       shinydashboard::box(
         title="Heatmap", width=12, solidHeader=TRUE,
         shiny::fluidRow(
+          column(width=2),
           column(
             width=3,
             sliderInput(
