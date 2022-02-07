@@ -482,6 +482,7 @@ genes_select_dt <- function(sterm, nmat, annt) {
   sterms <- strsplit(sterm, ',')[[1]]
   gsfid <- unique(unlist(lapply(
     sterms, function(sterm) {
+      sterm = stringr::str_trim(sterm,side="both")
       grep1 <- grep(sterm,annt[[1]],ignore.case=TRUE)
       grep2 <- grep(sterm,annt[[2]],ignore.case=TRUE)
       grep3 <- grep(sterm,annt[[3]],ignore.case=TRUE)
