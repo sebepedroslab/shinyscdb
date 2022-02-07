@@ -450,11 +450,11 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
           heatmap_colors=heatmap_colors,
           ct_table=CELL_ANNT,
           mcid_font_size=6
-        ),  error = function(e) message(e))
+        ), error = function(e) message("Select at least two genes!"))
       }
       output$genes_hmap <- shiny::renderPlot({
-        if (!is.null(selected_genes$values)) {
-          print(plotting_f())
+        if (!is.null(selected_genes$values) & length(selected_genes$values)>1) {
+          tryCatch(print(plotting_f()), error=function(e) NULL)
         }
       })
       hmh <- reactiveValues()

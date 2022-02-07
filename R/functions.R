@@ -531,11 +531,11 @@ mgenes_hmap <- function(
   names(row_labels) <- gs
 
   message("Genes in heatmap: ",nrow(nmat[gs,]))
-  hm <- as.matrix(nmat[gs,])
+  hm <- as.matrix(nmat[gs,,drop=FALSE])
 
   # filter genes
   if (!is.null(min_expression_fc)) {
-    message("Filtering genes by min FC")
+    message("Filtering genes by min FC ", min_expression_fc)
     flt <- apply(hm, 1, function(x) !(sort(x,decreasing=TRUE,na.last=TRUE)[1]<min_expression_fc))
     hm <- hm[flt,]
   }
@@ -566,12 +566,13 @@ mgenes_hmap <- function(
   )
 
   # cell type colours
+  message("Cell types colors")
   if (is.null(cell_type_palette)) {
     ctpalette_dt <- unique(ct_table[,.(cell_type,color)])
     cell_type_palette <- structure(ctpalette_dt$color, names = ctpalette_dt$cell_type)
   }
   # all cell types and colors
-  cell_types <- ct_table[match(colnames(hm),mc)]$cell_type
+  cell_types <- ct_table[match(colnames(hmat),mc)]$cell_type
   cell_colours <- cell_type_palette[cell_types]
 
   # cell type annotiation bar
@@ -606,10 +607,17 @@ mgenes_hmap <- function(
     }
   }))
   names(ganns_tr) <- gs
-  gs_ann <- ComplexHeatmap::HeatmapAnnotation(
-    which = "row", gn = anno_text(ganns_tr,which="row"),
-    show_annotation_name = FALSE, show_legend = FALSE
-  )
+  if (any(ganns_tr!="")) {
+    gs_ann <- ComplexHeatmap::HeatmapAnnotation(
+      which = "row", gn = anno_text(ganns_tr,which="row"),
+      show_annotation_name = FALSE, show_legend = FALSE
+    )
+  } else {
+    gs_ann <- ComplexHeatmap::HeatmapAnnotation(
+      which = "row", gn = anno_empty(which="row", border = FALSE),
+      show_annotation_name = FALSE, show_legend = FALSE
+    )
+  }
 
   # expression heatmap
   message("Building heatmap")
