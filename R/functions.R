@@ -478,13 +478,18 @@ mc_2d_plot = function(
 
 #' Select genes for heatmap
 genes_select_dt <- function(sterm, nmat, annt) {
-  grep1 <- grep(sterm,annt[[1]],ignore.case=TRUE)
-  grep2 <- grep(sterm,annt[[2]],ignore.case=TRUE)
-  grep3 <- grep(sterm,annt[[3]],ignore.case=TRUE)
-  rids <- sort(unique(c(grep1, grep2, grep3)))
-  gs <- annt[rids][[1]]
-  gsf <- gs[gs %in% rownames(nmat)]
-  gsfid <- match(gsf,annt[[1]])
+  # try splitting on ','
+  sterms <- strsplit(sterm, ',')[[1]]
+  gsfid <- unique(unlist(lapply(
+    sterms, function(sterm) {
+      grep1 <- grep(sterm,annt[[1]],ignore.case=TRUE)
+      grep2 <- grep(sterm,annt[[2]],ignore.case=TRUE)
+      grep3 <- grep(sterm,annt[[3]],ignore.case=TRUE)
+      rids <- sort(unique(c(grep1, grep2, grep3)))
+      gs <- annt[rids][[1]]
+      gsf <- gs[gs %in% rownames(nmat)]
+      match(gsf,annt[[1]])
+    }), use.names = FALSE))
   annt[gsfid,1:3]
 }
 genes_upload_dt <- function(gs,annt) {

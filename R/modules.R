@@ -328,7 +328,7 @@ multiGeneUI <- function(id, label="Multi gene expression") {
       shinydashboard::box(
         title="Heatmap", width=12, solidHeader=TRUE,
         shiny::fluidRow(
-          column(width=2),
+          column(width=1),
           column(
             width=3,
             sliderInput(
