@@ -22,7 +22,7 @@ introUI <- function(id, label="Intro") {
     ),
     shiny::fluidRow(
       shinydashboard::box(
-        title="Gene expression heatmap", width = 12, height = 3000, solidHeader = TRUE,
+        title="Gene expression heatmap", width = 12, height = 3200, solidHeader = TRUE,
         shiny::h5(
           "Heatmap showing relative enrichment of UMIs for genes (rows) in metacells (column number IDs)
           grouped in cell types (column color bar annotation). You can customize the number of genes shown in the heatmap below."
@@ -253,9 +253,6 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
 
       # barplot of gene umifrac
       cttable = as.data.frame(CELL_ANNT)
-      print("input to sg_plot")
-      print(head(cttable))
-      print("...")
       output$gene_barplot <- shiny::renderPlot(
         sg_plot(
           nmat=MCFP, umat=UMIFRAC, cttable=cttable, order_by=input$order_bars_by,
