@@ -804,6 +804,7 @@ scp_plot_cmod_markers_select <- function(
   } else if (!is.null(gene_annot_file) & "data.frame" %in% class(gene_annot_file)) {
     annot = gene_annot_file
     class(annot) <- "data.frame"
+    rownames(annot) <- annot[,1]
   }
 
 
@@ -865,26 +866,22 @@ scp_plot_cmod_markers_select <- function(
 
     gene_labels_0 <- genes[gene_ord]
 
-    message("Genes: ", head(gene_labels_0), "...")
+    message("Genes: ", paste(head(gene_labels_0), collapse = ", "), "...")
 
     gene_labels_1 <- as.character(annot[genes[gene_ord],2])
-    message("Gene labels: ", head(gene_labels_0), "...")
     bad_labels <- gene_labels_1 %in% c("","-"," ") | is.na(gene_labels_1)
-    message(sum(bad_labels), " bad gene labels")
     gene_labels_1[bad_labels] <- gene_labels_0[bad_labels]
-    # OMIT GENE ANNOTATION SHORTENING: truncation + padding done in the actual plotting functions
-    # long_labels <- nchar(gene_labels_1)>gene_chr_limit
-    # message(sum(long_labels), " long gene labels")
-    # gene_labels_1[long_labels] <- paste0(substr(gene_labels_1[long_labels],1,gene_chr_limit-3),"...")
     names(gene_labels_1) <- genes[gene_ord]
 
     gene_labels_3 <- as.character(annot[genes[gene_ord],1])
     bad_labels <- gene_labels_3 %in% c("","-"," ") | is.na(gene_labels_3)
     gene_labels_3[bad_labels] <- genes[gene_ord][bad_labels]
-    # long_labels <- nchar(gene_labels_3)>gene_chr_limit
-    # gene_labels_3[long_labels] <- paste0(substr(gene_labels_3[long_labels],1,gene_chr_limit-3),"...")
     gene_labels_2 <- ifelse(gene_labels_0 == gene_labels_3, gene_labels_0, paste(gene_labels_0,gene_labels_3, sep=" "))
     names(gene_labels_2) <- genes[gene_ord]
+
+    message("Gene labels 0: ",paste( head(gene_labels_0), collapse = ", "), "...")
+    message("Gene labels 1: ",paste( head(gene_labels_1), collapse = ", "), "...")
+    message("Gene labels 2: ",paste( head(gene_labels_2), collapse = ", "), "...")
 
   } else {
 
@@ -893,6 +890,7 @@ scp_plot_cmod_markers_select <- function(
     gene_labels_2 <- genes[gene_ord]
 
   }
+
 
   # return objects necessary for plotting
   marker_data_list = list(
