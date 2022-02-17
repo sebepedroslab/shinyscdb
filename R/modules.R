@@ -33,7 +33,7 @@ introUI <- function(id, label="Intro") {
             width = 3,
             shiny::sliderInput(
               inputId =  ns("per_clust_genes"), label = "Markers per cluster",
-              min = 1, max = 20, step = 1, value = 10
+              min = 1, max = 21, step = 1, value = 10
             )
           ),
           shiny::column(
@@ -41,6 +41,14 @@ introUI <- function(id, label="Intro") {
             shiny::sliderInput(
               inputId =  ns("gene_min_fold"), label = "Marker min FC",
               min = 0, max = 6, step = 0.2, value = 2
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::sliderInput(
+              inputId=ns("label_size"),
+              label = "Lables size",
+              min = 0, max = 10, step = 1, value = 5
             )
           )
         ),
@@ -97,7 +105,8 @@ introServer <- function(id, config_file="config.yaml", config_id) {
       output$plot_expression <- shiny::renderPlot(
         scp_plot_cmod_markers_mc(
           marker_data_list = MARKER_LIST(), clust_col=clust_col, clust_anno_size = unit(3,"mm"),
-          show_mc_names=FALSE,  mc_font_size=6, show_gene_names=TRUE, gene_font_size=6
+          show_mc_names=FALSE,  mc_font_size=input$label_size,
+          show_gene_names=TRUE, gene_font_size=input$label_size
         ),
         height = pmin(length(MARKER_LIST()$genes)*10, 2800)
       )
