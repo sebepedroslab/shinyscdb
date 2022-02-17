@@ -24,10 +24,25 @@ introUI <- function(id, label="Intro") {
       shinydashboard::box(
         title="Gene expression heatmap", width = 12, height = 3000, solidHeader = TRUE,
         shiny::h5(
-          "Heatmap: relative enrichment of UMIs for genes (rows)
-              in metacells (column number IDs)
-              grouped in cell types (column color bar annotation).
-              Barplot: symbiodinium signal in metacells."
+          "Heatmap showing relative enrichment of UMIs for genes (rows) in metacells (column number IDs)
+          grouped in cell types (column color bar annotation). You can customize the number of genes shown in the heatmap below."
+        ),
+        br(),
+        shiny::fluidRow(
+          shiny::column(
+            width = 3,
+            shiny::sliderInput(
+              inputId =  ns("per_clust_genes"), label = "Markers per cluster",
+              min = 1, max = 20, step = 1, value = 10
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::sliderInput(
+              inputId =  ns("gene_min_fold"), label = "Marker min FC",
+              min = 0, max = 6, step = 0.2, value = 2
+            )
+          )
         ),
         withSpinner(
           shiny::plotOutput(ns("plot_expression")),
@@ -52,28 +67,39 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         conf[[config_id]]$data_subdir
       )
 
+      mc_fp <- conf[[config_id]]$mcfp_file
       raw_counts_sc <- conf[[config_id]]$umicountsc_file
       mc2d_obj <-  conf[[config_id]]$mc2d_file
       cellmc_obj <-  conf[[config_id]]$cellmc_file
       cell_type_annotation <- conf[[config_id]]$ann_file
-      gene_expression_plot <- conf[[config_id]]$heatmap_file
-      marker_data_list <- conf[[config_id]]$markers_file
+      gene_annotation <-  conf[[config_id]]$gene_annot_file
 
+      MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       UMICOUNTSC <- readRDS(file = file.path(INPUT_DIR, raw_counts_sc))
       MC2D <- readRDS(file = file.path(INPUT_DIR, mc2d_obj))
       CELLMC <- readRDS(file = file.path(INPUT_DIR, cellmc_obj))
       CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
-      MARKER_LIST <- readRDS(file = file.path(INPUT_DIR, marker_data_list))
+      GENE_ANNT <- fread_gene_annotation(
+        file = file.path(INPUT_DIR, gene_annotation),
+        select = c(1:3),
+        col.names = c("gene_id","gene name","PFAM domain"),
+        search.column = c("gene_id","gene name","PFAM domain")
+      )
 
-      plot_expression_filepath <- file.path(INPUT_DIR, gene_expression_plot)
-
+      MARKER_LIST <- reactive(
+        scp_plot_cmod_markers_select(
+          mc_fp = MCFP, gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
+          per_clust_genes = input$per_clust_genes,
+          gene_min_fold = input$gene_min_fold
+        )
+      )
       clust_col <- structure(CELL_ANNT[[3]], names=CELL_ANNT[[1]])
       output$plot_expression <- shiny::renderPlot(
         scp_plot_cmod_markers_mc(
-          marker_data_list = MARKER_LIST, clust_col=clust_col, clust_anno_size = unit(3,"mm"),
+          marker_data_list = MARKER_LIST(), clust_col=clust_col, clust_anno_size = unit(3,"mm"),
           show_mc_names=FALSE,  mc_font_size=6, show_gene_names=TRUE, gene_font_size=6
         ),
-        height = pmin(length(MARKER_LIST$genes)*10, 2800)
+        height = pmin(length(MARKER_LIST()$genes)*10, 2800)
       )
 
       # 2d mc projection
@@ -92,8 +118,6 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         summarize_cell_annotation(CELL_ANNT)
       }
 
-      # Return the reactive
-      # return()
     }
   )
 }
@@ -328,7 +352,6 @@ multiGeneUI <- function(id, label="Multi gene expression") {
       shinydashboard::box(
         title="Heatmap", width=12, solidHeader=TRUE,
         shiny::fluidRow(
-          column(width=1),
           column(
             width=3,
             sliderInput(
@@ -344,7 +367,7 @@ multiGeneUI <- function(id, label="Multi gene expression") {
             )
           ),
           column(width=1, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
-          column(width=1),
+          column(width=2),
           column(width=1, downloadButton(ns("download_genes_hmap"),"Download heatmap"))
         ),
         withSpinner(

@@ -751,6 +751,165 @@ mc_gene_summary <- function(
   list(gene_summary=gap_dt, summary=search_tdt)
 }
 
+#' Prepare heatmap of gene expression: select marker genes & create annotations
+#' same as in Downstream_functions.R, just works on matrix and not on mc object
+#'
+#' Prepares heatmap of gene expression fold change for metacells and single cells
+#' (no plotting done, returns list with selected markers and prepared annotations),
+#'
+#' @param mc_object loaded metacell object (`gMCCov` class)
+#' @param black_list character, blacklisted genes
+#' @param sub_list_mc
+#' @param gene_list character, list of genes to plot, if NULL (default) ...
+#' @param order_genes logical, whether to cluster genes (default: TRUE)
+#' @param gene_annot_file charcter, file path to the file containig gene annotations,
+#'    it should have three tab separated columns containing gene ID, pfam architecture
+#'    and any additional annotation in the last column
+#' @param annot_header logical, gene annotation file has column names?
+#' @param gene_font_size numeric, size of the gene names plotted as rownames
+#'    (default: 4)
+#' @param clust_ord character, metacells in the order in which they should be
+#'    plotted; if cluster order is not specified (default: NULL), it is
+#'    determined by hierarchical clustering
+#' @param per_clust_genes integer, how many genes per cluster to aim to show in the heatmap
+#'    (default: 20)
+#' @param gene_min_fold numeric, minimum fold change for a gene to be considered for plotting
+#'    (default: 2)
+#' @param transverality_N integer, number of metacells in which a gene can be highly expressed (>1.4)
+#'    to be considered for plotting, by default this is the total number of metacells
+#' @param transv_excluded_mc character, metacells to be excluded in transversality calculation
+#'    (default: NULL)
+#' @param output_file optionally, a path to RDS file to which the function output will be saved
+#'
+scp_plot_cmod_markers_select <- function(
+  mc_fp,
+  black_list = c(),
+  sub_list_mc = NULL,
+  gene_list = NULL,
+  order_genes = TRUE,
+  gene_annot_file = NULL,
+  annot_header = FALSE,
+  gene_font_size = 4,
+  clust_ord = NULL,
+  per_clust_genes = 20,
+  gene_min_fold = 2,
+  transverality_N = ncol(mc_fp),
+  transv_excluded_mc = NULL,
+  output_file=NULL
+) {
+
+  # load gene annotations
+  if (!is.null(gene_annot_file) & "character" %in% class(gene_annot_file)) {
+    annot = read.table(gene_annot_file, header=annot_header, sep="\t", fill=TRUE, quote="", row.names=1)
+  } else if (!is.null(gene_annot_file) & "data.frame" %in% class(gene_annot_file)) {
+    annot = gene_annot_file
+    class(annot) <- "data.frame"
+  }
+
+
+  # expression matrix
+  if (is.null(sub_list_mc)) {
+    niche_geomean_n= mc_fp
+  } else {
+    niche_geomean_n= mc_fp[,sub_list_mc]
+    clust_ord=sub_list_mc
+  }
+
+  # exclude genes with fc < gene_min_fold
+  genes=unique(as.vector(unlist(apply(niche_geomean_n, 2, function(x) names(head(sort(-x[x > gene_min_fold]),n=per_clust_genes))))))
+
+  # select genes for plotting
+  # if (!is.null(black_list))
+  #   black_list <- vector("character")
+  if (is.null(gene_list)){
+    # exclude blacklisted genes
+    genes=setdiff(genes, black_list)
+    message(sprintf("Excluded %s blacklisted genes", length(black_list)))
+    # exclude genes with transversality > transverality_N
+    transversal_genes=names(which(
+      apply(
+        niche_geomean_n[,setdiff(as.character(colnames(niche_geomean_n)),transv_excluded_mc)],
+        1,
+        function(x) sort(x,decreasing=TRUE)[transverality_N] > 1.4
+      )
+    ))
+    genes=setdiff(genes, transversal_genes)
+  } else {
+    # plot only genes in gene list, if it is specified
+    genes <- gene_list[gene_list %in% genes]
+  }
+  genes=genes[genes %in% rownames(niche_geomean_n)]
+  message("Will use ",length(genes)," genes")
+
+  mat_niche <- niche_geomean_n[genes,]
+
+  # if cluster order is not specified, do hierarchical clustering
+  if (is.null(clust_ord)) {
+    message("Recomputing cell ord")
+    hc1 = hclust(dist(cor(mat_niche,method="pearson")), "ward.D2")
+    clust_ord = as.character(hc1$order)
+    scr_tmp_niche_order <- as.character(hc1$order)
+  }
+
+  # if gene order is TRUE, order genes
+  if (order_genes){
+    message("Ordering genes")
+    gene_ord = order(apply(mat_niche[,as.character(clust_ord)],1,function(x) which.max(rollmean(x,1))))
+  } else {
+    gene_ord= 1:nrow(mat_niche)
+  }
+  gene_ord <- rev(gene_ord)
+
+  # gene labels
+  if (!is.null(gene_annot_file)) {
+
+    gene_labels_0 <- genes[gene_ord]
+
+    message("Genes: ", head(gene_labels_0), "...")
+
+    gene_labels_1 <- as.character(annot[genes[gene_ord],2])
+    message("Gene labels: ", head(gene_labels_0), "...")
+    bad_labels <- gene_labels_1 %in% c("","-"," ") | is.na(gene_labels_1)
+    message(sum(bad_labels), " bad gene labels")
+    gene_labels_1[bad_labels] <- gene_labels_0[bad_labels]
+    # OMIT GENE ANNOTATION SHORTENING: truncation + padding done in the actual plotting functions
+    # long_labels <- nchar(gene_labels_1)>gene_chr_limit
+    # message(sum(long_labels), " long gene labels")
+    # gene_labels_1[long_labels] <- paste0(substr(gene_labels_1[long_labels],1,gene_chr_limit-3),"...")
+    names(gene_labels_1) <- genes[gene_ord]
+
+    gene_labels_3 <- as.character(annot[genes[gene_ord],1])
+    bad_labels <- gene_labels_3 %in% c("","-"," ") | is.na(gene_labels_3)
+    gene_labels_3[bad_labels] <- genes[gene_ord][bad_labels]
+    # long_labels <- nchar(gene_labels_3)>gene_chr_limit
+    # gene_labels_3[long_labels] <- paste0(substr(gene_labels_3[long_labels],1,gene_chr_limit-3),"...")
+    gene_labels_2 <- ifelse(gene_labels_0 == gene_labels_3, gene_labels_0, paste(gene_labels_0,gene_labels_3, sep=" "))
+    names(gene_labels_2) <- genes[gene_ord]
+
+  } else {
+
+    gene_labels_0 <- genes[gene_ord]
+    gene_labels_1 <- genes[gene_ord]
+    gene_labels_2 <- genes[gene_ord]
+
+  }
+
+  # return objects necessary for plotting
+  marker_data_list = list(
+    genes = genes,
+    gene_ord = gene_ord,
+    clust_ord = clust_ord,
+    niche_geomean_n = niche_geomean_n,
+    gene_labels_1 = gene_labels_1,
+    gene_labels_2 = gene_labels_2
+  )
+
+  if (!is.null(output_file)) saveRDS(marker_data_list, output_file)
+
+  return(marker_data_list)
+
+}
+
 #' Plot heatmap of gene expression for metacells
 #'
 scp_plot_cmod_markers_mc <- function(
@@ -787,7 +946,6 @@ scp_plot_cmod_markers_mc <- function(
   gene_labels_2 = marker_data_list$gene_labels_2
   gids = marker_data_list$gids
   gene_font_col = marker_data_list$gene_font_col
-
 
   # truncate left-side annotations
   gene_labels_1 = stringr::str_trunc(gene_labels_1, gene_chr_limit)
