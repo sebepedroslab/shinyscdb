@@ -17,7 +17,7 @@ mc_2d_plot(
 )
 }
 \arguments{
-\item{customize}{character vector of what to show on 2d projection, one or more of c("Links","Metacells","Metacell labels")}
+\item{customize}{character vector of what to show on 2d projection, one or more of c("cells","metacells","labels","links")}
 }
 \description{
 Plot 2d proj colored by mc

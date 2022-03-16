@@ -401,7 +401,7 @@ scp_plot_sc_2d_gene_exp = function(
 }
 
 #' Plot 2d proj colored by mc
-#' @param customize character vector of what to show on 2d projection, one or more of c("Links","Metacells","Metacell labels")
+#' @param customize character vector of what to show on 2d projection, one or more of c("cells","metacells","labels","links")
 mc_2d_plot = function(
   mc2d,
   mcsc,
@@ -409,6 +409,7 @@ mc_2d_plot = function(
   customize,
   # plot_edges=TRUE,
   # plot_mcs=TRUE,
+  # plot_scs=TRUE,
   # plot_mc_name=TRUE,
   width=12,
   height=12,
@@ -416,21 +417,26 @@ mc_2d_plot = function(
   cex_mc=3,
   cex_sc=0.75) {
 
-  print(customize)
-  if ("Links" %in%  customize) {
-    plot_edges <- TRUE
+  customize <- tolower(customize)
+  if ("cells" %in%  customize) {
+    plot_scs <- TRUE
   } else {
-    plot_edges <- FALSE
+    plot_scs <- FALSE
   }
-  if ("Metacells" %in%  customize) {
+  if ("metacells" %in%  customize) {
     plot_mcs <- TRUE
   } else {
     plot_mcs <- FALSE
   }
-  if ("Metacell labels" %in%  customize) {
+  if ("labels" %in%  customize) {
     plot_mc_name <- TRUE
   } else {
     plot_mc_name <- FALSE
+  }
+  if ("links" %in%  customize) {
+    plot_edges <- TRUE
+  } else {
+    plot_edges <- FALSE
   }
   # get colors of metacells
   mc_colors = structure(cttable$color, names=cttable$mc)
@@ -450,6 +456,9 @@ mc_2d_plot = function(
 
   }
   # plot individual cells?
+  if (!plot_scs) {
+    cex_sc = 0
+  }
   plot(
     mc2d@sc_x,
     mc2d@sc_y,
@@ -461,7 +470,6 @@ mc_2d_plot = function(
     xlab = NA, ylab = NA,
     xaxt ="n", yaxt ="n", bty = "n"
   )
-
   # plot edges between metacells?
   if (plot_edges) {
     fr = mc2d@graph$mc1

@@ -16,10 +16,10 @@ introUI <- function(id, label="Intro") {
           checkboxGroupButtons(
             inputId = ns("plot_2d_customize"),
             label = "Show",
-            choices = c("Metacells", "Metacell labels", "Links"),
-            selected = c("Metacells", "Metacell labels")
+            choices = c("Cells", "Metacells", "Labels", "Links"),
+            selected = c("Cells", "Metacells", "Labels")
           ),
-          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
         )
       ),
@@ -53,7 +53,7 @@ introUI <- function(id, label="Intro") {
             label = "Lables size",
             min = 0, max = 12, step = 1, value = 6
           ),
-          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
         ),
         withSpinner(
@@ -206,7 +206,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
                 label = "Metacell lables size",
                 min = 0, max = 10, step = 1, value = 8
               ),
-              circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+              circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
               tooltip = tooltipOptions(title = "Click to customize")
             )
           )
@@ -372,14 +372,14 @@ multiGeneUI <- function(id, label="Multi gene expression") {
             inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
             min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
           ),
-          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
         ),
         withSpinner(
           uiOutput(ns("ui_genes_heatmap")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
         ),
-        imageOutput(ns("plot_ct_legend_horizontal_heatmap")),
+        br(),
         downloadButton(ns("download_genes_hmap"),"Download heatmap")
       )
     )
