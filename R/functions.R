@@ -401,19 +401,37 @@ scp_plot_sc_2d_gene_exp = function(
 }
 
 #' Plot 2d proj colored by mc
+#' @param customize character vector of what to show on 2d projection, one or more of c("Links","Metacells","Metacell labels")
 mc_2d_plot = function(
   mc2d,
   mcsc,
   cttable,
-  plot_edges=TRUE,
-  plot_mcs=TRUE,
-  plot_mc_name=TRUE,
+  customize,
+  # plot_edges=TRUE,
+  # plot_mcs=TRUE,
+  # plot_mc_name=TRUE,
   width=12,
   height=12,
   res=NA,
   cex_mc=3,
   cex_sc=0.75) {
 
+  print(customize)
+  if ("Links" %in%  customize) {
+    plot_edges <- TRUE
+  } else {
+    plot_edges <- FALSE
+  }
+  if ("Metacells" %in%  customize) {
+    plot_mcs <- TRUE
+  } else {
+    plot_mcs <- FALSE
+  }
+  if ("Metacell labels" %in%  customize) {
+    plot_mc_name <- TRUE
+  } else {
+    plot_mc_name <- FALSE
+  }
   # get colors of metacells
   mc_colors = structure(cttable$color, names=cttable$mc)
   # get colors of individual cells

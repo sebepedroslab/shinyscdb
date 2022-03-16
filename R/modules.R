@@ -6,55 +6,59 @@ introUI <- function(id, label="Intro") {
   shiny::tagList(
     shiny::fluidRow(
       shinydashboard::box(
-        title="Metacell 2D projection", width = 8, height = 1000, solidHeader = TRUE,
+        title="Metacell 2D projection", width = 8, height = 1000, solidHeader=FALSE,
         withSpinner(
           shiny::plotOutput(ns("plot_2d_proj"), height = 800),
-          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = TRUE
+        ),
+        tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
+        dropdownButton(
+          checkboxGroupButtons(
+            inputId = ns("plot_2d_customize"),
+            label = "Show",
+            choices = c("Metacells", "Metacell labels", "Links"),
+            selected = c("Metacells", "Metacell labels")
+          ),
+          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          tooltip = tooltipOptions(title = "Click to customize")
         )
       ),
       shinydashboard::box(
-        title = "Cell type annotation", width = 4, height = 1000, solidHeader = TRUE,
+        title = "Cell type annotation", width = 4, height = 1000, solidHeader=FALSE,
         withSpinner(
           tableOutput(ns("cell_annot_table")),
-          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = TRUE
         )
       )
     ),
     shiny::fluidRow(
       shinydashboard::box(
-        title="Gene expression heatmap", width = 12, height = 3200, solidHeader = TRUE,
+        title="Gene expression heatmap", width = 12, height = 3200, solidHeader=FALSE,
         shiny::h5(
           "Heatmap showing relative enrichment of UMIs for genes (rows) in metacells (column number IDs)
           grouped in cell types (column color bar annotation). You can customize the number of genes shown in the heatmap below."
         ),
         br(),
-        shiny::fluidRow(
-          shiny::column(
-            width = 3,
-            shiny::sliderInput(
-              inputId =  ns("per_clust_genes"), label = "Markers per cluster",
-              min = 1, max = 21, step = 1, value = 10
-            )
+        dropdownButton(
+          shiny::sliderInput(
+            inputId =  ns("per_clust_genes"), label = "Markers per cluster",
+            min = 1, max = 21, step = 1, value = 10
           ),
-          shiny::column(
-            width = 3,
-            shiny::sliderInput(
-              inputId =  ns("gene_min_fold"), label = "Marker min FC",
-              min = 0, max = 6, step = 0.2, value = 2
-            )
+          shiny::sliderInput(
+            inputId =  ns("gene_min_fold"), label = "Marker min FC",
+            min = 0, max = 6, step = 0.2, value = 2
           ),
-          shiny::column(
-            width = 3,
-            shiny::sliderInput(
-              inputId=ns("label_size"),
-              label = "Lables size",
-              min = 0, max = 10, step = 1, value = 5
-            )
-          )
+          shiny::sliderInput(
+            inputId=ns("label_size"),
+            label = "Lables size",
+            min = 0, max = 12, step = 1, value = 6
+          ),
+          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          tooltip = tooltipOptions(title = "Click to customize")
         ),
         withSpinner(
           shiny::plotOutput(ns("plot_expression")),
-          type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          type = 8, color = "lightgrey", size = 0.5, hide.ui = TRUE
         )
       )
     )
@@ -113,7 +117,10 @@ introServer <- function(id, config_file="config.yaml", config_id) {
 
       # 2d mc projection
       output$plot_2d_proj <- shiny::renderPlot(
-        mc_2d_plot(MC2D,CELLMC,CELL_ANNT,plot_edges=FALSE),
+        mc_2d_plot(
+          MC2D,CELLMC, CELL_ANNT, customize=input$plot_2d_customize
+          #plot_edges=plot_edges(), plot_mcs=plot_mcs(), plot_mc_name=plot_mc_name()
+        ),
         height = function() {
           height = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
           pmin(height, 900)
@@ -157,7 +164,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
     ),
     shiny::fluidRow(
       shinydashboard::box(
-        title="2D projection", width=8, height = 1000, solidHeader=TRUE,
+        title="2D projection", width=8, height = 1000, solidHeader=FALSE,
         tryCatch(
           withSpinner(
             shiny::plotOutput(ns("gene_2d"), height = 900),
@@ -166,7 +173,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
         )
       ),
       shinydashboard::box(
-        title = "Cell type annotation", width = 4, height = 1000, solidHeader = TRUE,
+        title = "Cell type annotation", width = 4, height = 1000, solidHeader=FALSE,
         withSpinner(
           tableOutput(ns("cell_annot_table")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
@@ -182,28 +189,25 @@ singleGeneUI <- function(id, label="Single gene expression") {
             withSpinner(
               shiny::plotOutput(ns("gene_barplot"), height = 700),
               type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-            )
-          )
-        ),
-        shiny::fluidRow(
-          shiny::column(
-            width = 3,
-            shiny::selectInput(
-              inputId=ns("order_bars_by"),
-              label="Order bars by",
-              choices=c(
-                "cell type" = "cell_type",
-                "metacell" = "metacell"
+            ),
+            tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
+            dropdownButton(
+              shiny::selectInput(
+                inputId=ns("order_bars_by"),
+                label="Order bars by",
+                choices=c(
+                  "cell type" = "cell_type",
+                  "metacell" = "metacell"
+                ),
+                selectize = FALSE
               ),
-              selectize = FALSE
-            )
-          ),
-          shiny::column(
-            width = 3,
-            shiny::sliderInput(
-              inputId=ns("mc_label_size"),
-              label = "Metacell lables size",
-              min = 0, max = 10, step = 1, value = 5
+              shiny::sliderInput(
+                inputId=ns("mc_label_size"),
+                label = "Metacell lables size",
+                min = 0, max = 10, step = 1, value = 8
+              ),
+              circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+              tooltip = tooltipOptions(title = "Click to customize")
             )
           )
         )
@@ -307,7 +311,7 @@ multiGeneUI <- function(id, label="Multi gene expression") {
   shiny::tagList(
     shiny::fluidRow(
       shinydashboard::box(
-        title="Gene selection", width=12, height=NULL, solidHeader = TRUE,
+        title="Gene selection", width=12, height=NULL, solidHeader=TRUE,
         shiny::h5("Choose genes for which to plot the expression across metacells.
               Either search for genes by typing (part of) the name or gene id in the search bar,
               or upload a text file with genes."),
@@ -357,30 +361,26 @@ multiGeneUI <- function(id, label="Multi gene expression") {
     shiny::fluidRow(
       shinydashboard::box(
         title="Heatmap", width=12, solidHeader=TRUE,
-        shiny::fluidRow(
-          column(
-            width=3,
-            sliderInput(
-              inputId = ns("min_expression_fc"), label="Filter genes by min FC:",
-              min=0, max=5, step=0.1, round=FALSE, value=0, width = "100%"
-            )
+        tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
+        dropdownButton(
+          sliderInput(
+            inputId = ns("min_expression_fc"), label="Filter genes by min FC:",
+            min=0, max=5, step=0.1, round=FALSE, value=0, width = "100%"
           ),
-          column(
-            width=3,
-            sliderInput(
-              inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
-              min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
-            )
+          switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE),
+          sliderInput(
+            inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
+            min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
           ),
-          column(width=1, switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE)),
-          column(width=2),
-          column(width=1, downloadButton(ns("download_genes_hmap"),"Download heatmap"))
+          circle = TRUE, status = "custom", icon = icon("gear"), style = "unite", width = "300px",
+          tooltip = tooltipOptions(title = "Click to customize")
         ),
         withSpinner(
           uiOutput(ns("ui_genes_heatmap")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
         ),
-        imageOutput(ns("plot_ct_legend_horizontal_heatmap"))
+        imageOutput(ns("plot_ct_legend_horizontal_heatmap")),
+        downloadButton(ns("download_genes_hmap"),"Download heatmap")
       )
     )
   )
@@ -493,7 +493,7 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
           min_expression_fc=input$min_expression_fc
         )
         if (hmh$ng<5) {
-          sf <- 60
+          sf <- 80
         } else if (hmh$ng<15) {
           sf <- 50
         } else if (hmh$ng<25) {
@@ -859,7 +859,7 @@ comparaUI <- function(id, label="Cross species comparison") {
       ),
 
       shinydashboard::box(
-        "Selected cell type pair:", width = 4, height = 800, solidHeader = FALSE,
+        "Selected cell type pair:", width = 4, height = 800, solidHeader=FALSE,
         br(),
         h5("Click on the cell in heatmap to see details about cell type pair similarity."),
         # file
@@ -874,7 +874,7 @@ comparaUI <- function(id, label="Cross species comparison") {
 
     shiny::fluidRow(
       shinydashboard::box(
-        width = 12, solidHeader = FALSE,
+        width = 12, solidHeader=FALSE,
         DT::dataTableOutput(ns("ht_click_table"))
       )
     )

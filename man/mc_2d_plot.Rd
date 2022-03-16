@@ -8,15 +8,16 @@ mc_2d_plot(
   mc2d,
   mcsc,
   cttable,
-  plot_edges = TRUE,
-  plot_mcs = TRUE,
-  plot_mc_name = TRUE,
+  customize,
   width = 12,
   height = 12,
   res = NA,
   cex_mc = 3,
   cex_sc = 0.75
 )
+}
+\arguments{
+\item{customize}{character vector of what to show on 2d projection, one or more of c("Links","Metacells","Metacell labels")}
 }
 \description{
 Plot 2d proj colored by mc
