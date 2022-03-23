@@ -14,7 +14,7 @@
 fread_gene_annotation <- function(
   file,
   select = 1:3,
-  col.names = c("gene_id","PFAM domain","best human BLAST hit"),
+  col.names = c("gene_id","best human BLAST hit","PFAM domain"),
   search.column = NULL
 ) {
   GENE_ANNT <- data.table::fread(
@@ -982,6 +982,7 @@ scp_plot_cmod_markers_mc <- function(
   mat1 = pmin( log2(niche_geomean_n[genes[gene_ord],as.character(clust_ord)] + 1), max_expression_fc )
 
   # create gene annotations
+  if (!gene_font_size>0) show_gene_names = FALSE
   if (show_gene_names) {
     if (length(highlight_genes) > 1) {
       message("Gene annots highlights")
@@ -1031,10 +1032,11 @@ scp_plot_cmod_markers_mc <- function(
   # mc labels
   message("Metacell labels...")
   collabs <- colnames(mat1)
+  if (!mc_font_size>0) show_mc_names = FALSE
   if (!show_mc_names) collabs <- rep("",length(collabs))
   column_lab_ha = ComplexHeatmap::HeatmapAnnotation(
     which = "column",
-    LAB = anno_text(which = "column", collabs, gp = gpar(fontsize = mc_font_size, rot=90)),
+    LAB = anno_text(which = "column", collabs, gp = gpar(fontsize = pmax(1,mc_font_size), rot=90)),
     height=unit(2,"mm")
   )
   top_column_ha = c(column_lab_ha)
@@ -1495,7 +1497,7 @@ csps_plot_annotated_matrix = function(
   name = "data",
   heatmap_colors = c("white","orange","orangered2","#520c52"),
   min_val = 0,
-  max_val = 1,
+  max_val = quantile(mat, 0.99),
   use_raster = TRUE,
   row_title = NULL,
   col_title = NULL,
@@ -1522,6 +1524,22 @@ csps_plot_annotated_matrix = function(
   col_fun = circlize::colorRamp2(
     breaks = seq(from = min_val, to = max_val, length.out = length(heatmap_colors)),
     colors = heatmap_colors)
+
+  cor_method_name = name
+  if (name %in% c("jsd","kld")) {
+    min_val = quantile(mat, 0.01)
+    max_val = quantile(mat, 0.99)
+    cor_method_name = sprintf("1-sqrt(%s)", name)
+  } else if (name %in% "jsdnp") {
+    max_val = quantile(mat, 0.01)
+    min_val = quantile(mat, 0.99)
+  } else if (name %in% "shaferindex") {
+    min_val = 0
+    max_val = quantile(mat, 0.95)
+  } else if (name %in% "onls") {
+    min_val = 0
+    max_val = quantile(mat, 0.99)
+  }
 
   # Titles
   # get row title
@@ -1647,7 +1665,7 @@ csps_plot_annotated_matrix = function(
   # heatmap object
   hm = ComplexHeatmap::Heatmap(
     mat,
-    name = name,
+    name = cor_method_name,
     cell_fun = cell_fun_dotplot,
     rect_gp = rect_gp,
     use_raster = use_raster,

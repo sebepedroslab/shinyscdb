@@ -10,7 +10,7 @@ csps_plot_annotated_matrix(
   name = "data",
   heatmap_colors = c("white", "orange", "orangered2", "#520c52"),
   min_val = 0,
-  max_val = 1,
+  max_val = quantile(mat, 0.99),
   use_raster = TRUE,
   row_title = NULL,
   col_title = NULL,

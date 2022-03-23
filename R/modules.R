@@ -101,6 +101,7 @@ introServer <- function(id, config_file="config.yaml", config_id) {
       MARKER_LIST <- reactive(
         scp_plot_cmod_markers_select(
           mc_fp = MCFP, gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
+          black_list = grep("orphan_peak", rownames(MCFP), value = TRUE),
           per_clust_genes = input$per_clust_genes,
           gene_min_fold = input$gene_min_fold
         )
@@ -108,7 +109,8 @@ introServer <- function(id, config_file="config.yaml", config_id) {
       clust_col <- structure(CELL_ANNT[[3]], names=CELL_ANNT[[1]])
       output$plot_expression <- shiny::renderPlot(
         scp_plot_cmod_markers_mc(
-          marker_data_list = MARKER_LIST(), clust_col=clust_col, clust_anno_size = unit(3,"mm"),
+          marker_data_list = MARKER_LIST(),
+          clust_col=clust_col, clust_anno_size = unit(3,"mm"),
           show_mc_names=FALSE,  mc_font_size=input$label_size,
           show_gene_names=TRUE, gene_font_size=input$label_size
         ),
