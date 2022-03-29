@@ -80,11 +80,13 @@ summarize_cell_annotation <- function(annt) {
   )
   dt[, colshex := col2hex(cols)]
   dt[, metacells := cell_spec(
-      metacells, "html", color = "white", align = "c",
+      metacells, "html", color = "black", align = "c",
       background = factor(`cell type`, dt$`cell type`, dt$colshex)
   )]
   dtt <- dt[,c("cell type","metacells")]
-  knitr::kable(dtt, escape = FALSE, align = "c")
+  knitr::kable(dtt, escape = FALSE, align = "c") %>%
+    kable_styling(full_width = TRUE, fixed_thead = TRUE, bootstrap_options = "condensed") %>%
+    scroll_box(height = "900px", box_css = "border: 0px none #ddd; padding: 5px; ")
 }
 
 # Plotting functions -----------------------------------------------------------
