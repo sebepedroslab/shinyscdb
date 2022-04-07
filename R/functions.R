@@ -48,6 +48,30 @@ fread_cell_annotation <- function(file, select=NULL) {
 
 # Helper functions -------------------------------------------------------------
 
+# determine if color is light or dark
+ligt_or_dark <- function(color) {
+
+  dt = col2rgb(color)
+  R = dt["red",]
+  G = dt["green",]
+  B = dt["blue",]
+
+  # HSP equation from http://alienryderflex.com/hsp.html
+  hsp = sqrt(
+    0.299 * R^2 +
+    0.587 * G^2 +
+    0.114 * B^2
+  )
+
+  # Using the HSP value, determine whether the color is light or dark
+  if (hsp>127.5) {
+    "light"
+  } else {
+    "dark"
+  }
+}
+
+
 #' Reduce vector of metacells
 red_mc_vector <- function(x,range_sep=":") {
   all_mcs <- sort(as.integer(x))
@@ -79,8 +103,11 @@ summarize_cell_annotation <- function(annt) {
     cols = annt$color[match(unique(annt$cell_type),annt$cell_type)]
   )
   dt[, colshex := col2hex(cols)]
+  dt[, lightness := ligt_or_dark(cols), 1:nrow(dt)]
   dt[, metacells := cell_spec(
-      metacells, "html", color = "black", align = "c",
+      metacells, "html",
+      color = ifelse(dt$lightness == "dark", "white", "black"),
+      align = "c",
       background = factor(`cell type`, dt$`cell type`, dt$colshex)
   )]
   dtt <- dt[,c("cell type","metacells")]
@@ -496,11 +523,16 @@ mc_2d_plot = function(
 
   # plot metacell ids?
   if (plot_mc_name) {
+    lightness = sapply(mc_colors,ligt_or_dark)
+    mc_text_colors = ifelse(lightness=="dark","white","black")
+    if (plot_mcs==FALSE & plot_scs == FALSE) mc_text_colors = mc_colors
     text(
       mc2d@mc_x,
       mc2d@mc_y,
       #cex=cex_mc,
-      labels=names(mc2d@mc_x))
+      labels=names(mc2d@mc_x),
+      col=mc_text_colors
+    )
   }
 }
 
