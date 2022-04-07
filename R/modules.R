@@ -85,6 +85,7 @@ introServer <- function(id, config_file="config.yaml", config_id) {
       cellmc_obj <-  conf[[config_id]]$cellmc_file
       cell_type_annotation <- conf[[config_id]]$ann_file
       gene_annotation <-  conf[[config_id]]$gene_annot_file
+      black_list <-  conf[[config_id]]$blacklist
 
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       UMICOUNTSC <- readRDS(file = file.path(INPUT_DIR, raw_counts_sc))
@@ -97,15 +98,22 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         col.names = c("gene_id","gene name","PFAM domain"),
         search.column = c("gene_id","gene name","PFAM domain")
       )
+      if (!is.null(black_list)) {
+        bl <- readLines(file.path(INPUT_DIR, black_list))
+      } else {
+        bl <- c()
+      }
 
-      MARKER_LIST <- reactive(
+      MARKER_LIST <- reactive({
+        orphans <- grep("orphan_peak", rownames(MCFP), value = TRUE)
+        black_list_genes <- c(bl, orphans)
         scp_plot_cmod_markers_select(
           mc_fp = MCFP, gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
-          black_list = grep("orphan_peak", rownames(MCFP), value = TRUE),
+          black_list = black_list_genes,
           per_clust_genes = input$per_clust_genes,
           gene_min_fold = input$gene_min_fold
         )
-      )
+      })
       clust_col <- structure(CELL_ANNT[[3]], names=CELL_ANNT[[1]])
       output$plot_expression <- shiny::renderPlot(
         scp_plot_cmod_markers_mc(
