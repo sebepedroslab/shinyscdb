@@ -22,10 +22,12 @@ csps_plot_annotated_matrix(
   row_annot_cols = NULL,
   row_annot_legend = FALSE,
   row_cluster = FALSE,
+  row_cluster_method = "pearson",
   col_annot = NULL,
   col_annot_cols = NULL,
   col_annot_legend = FALSE,
   col_cluster = FALSE,
+  col_cluster_method = "pearson",
   cex_dotplot = 0.02,
   do_dotplot = FALSE
 )

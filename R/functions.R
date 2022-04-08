@@ -1543,10 +1543,12 @@ csps_plot_annotated_matrix = function(
   row_annot_cols = NULL,
   row_annot_legend = FALSE,
   row_cluster = FALSE,
+  row_cluster_method = "pearson",
   col_annot = NULL,
   col_annot_cols = NULL,
   col_annot_legend = FALSE,
   col_cluster = FALSE,
+  col_cluster_method = "pearson",
   cex_dotplot = 0.02,
   do_dotplot = FALSE) {
 
@@ -1685,15 +1687,11 @@ csps_plot_annotated_matrix = function(
   if (row_cluster %in% c("pearson","spearman","kendall", "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")) {
     row_cluster_method = row_cluster
     row_cluster = TRUE
-  } else {
-    row_cluster_method = NULL
   }
   # how to perform column-wise clustering
   if (col_cluster %in% c("pearson","spearman","kendall", "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")) {
     col_cluster_method = col_cluster
     col_cluster = TRUE
-  } else {
-    col_cluster_method = NULL
   }
 
   # heatmap object

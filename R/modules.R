@@ -105,7 +105,8 @@ introServer <- function(id, config_file="config.yaml", config_id) {
       }
 
       MARKER_LIST <- reactive({
-        orphans <- grep("orphan_peak", rownames(MCFP), value = TRUE)
+        orphans <- grep("orphan", rownames(MCFP), value = TRUE)
+        message("blacklisted ", length(orphans), " orphans")
         black_list_genes <- c(bl, orphans)
         scp_plot_cmod_markers_select(
           mc_fp = MCFP, gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
@@ -373,11 +374,11 @@ multiGeneUI <- function(id, label="Multi gene expression") {
         title="Heatmap", width=12, solidHeader=TRUE,
         tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
         dropdownButton(
+          prettySwitch(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE),
           sliderInput(
             inputId = ns("min_expression_fc"), label="Filter genes by min FC:",
             min=0, max=5, step=0.1, round=FALSE, value=0, width = "100%"
           ),
-          switchInput(ns("clustergenes"), "Cluster genes", value=TRUE, inline=FALSE),
           sliderInput(
             inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
             min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
@@ -861,7 +862,14 @@ comparaUI <- function(id, label="Cross species comparison") {
     # heatmap
     shiny::fluidRow(
       shinydashboard::box(
-        width = 8, height = 800,
+        width = 8, height = 900,
+        dropdownButton(
+          prettySwitch(ns("row_clust"), "Cluster rows", value=FALSE, inline=TRUE),
+          prettySwitch(ns("col_clust"), "Cluster columns", value=FALSE, inline=TRUE),
+          selectInput(ns("dist_clust"), label = "Clustering distance", choices = c("pearson","spearman","kendall", "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")),
+          circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
+          tooltip = tooltipOptions(title = "Click to customize")
+        ),
         withSpinner(
           plotOutput(ns("main_heatmap"), click = ns("ht_click")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
@@ -956,7 +964,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         cann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$ann_file)
         cann1 <- fread(cann1_file, header=TRUE)
         gann1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$gene_annot_file)
-        gann1 <- fread(gann1_file, header=FALSE)
+        gann1 <- fread(gann1_file, header=FALSE, select = 1:3)
         tfs1_file <- file.path(INPUT_DIR1, conf[[config_id1]]$tf_annot_file)
         tfs1 <- fread(tfs1_file, header=FALSE)
 
@@ -967,7 +975,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         cann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$ann_file)
         cann2 <- fread(cann2_file, header=TRUE)
         gann2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$gene_annot_file)
-        gann2 <- fread(gann2_file, header=FALSE)
+        gann2 <- fread(gann2_file, header=FALSE, select = 1:3)
         tfs2_file <- file.path(INPUT_DIR2, conf[[config_id2]]$tf_annot_file)
         tfs2 <- fread(tfs2_file, header=FALSE)
 
@@ -996,19 +1004,21 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         print(sprintf("dim: %s x %s", nrow(CSPS$cor_matrix), ncol(CSPS$cor_matrix)))
 
         # non-interactive heatmap
-        cor_heatmap <- csps_plot_annotated_matrix(
+        cor_heatmap <- reactive(csps_plot_annotated_matrix(
           mat = CSPS$cor_matrix,
           name = CSPS$method,
           row_annot = ann1, col_annot = ann2,
+          row_cluster = input$row_clust, col_cluster = input$col_clust,
+          row_cluster_method = input$dist_clust, col_cluster_method = input$dist_clust,
           fontsize = 8
-        )
+        ))
         output$cor_hmap_simple <- shiny::renderPlot({
-          ComplexHeatmap::draw(cor_heatmap)
+          ComplexHeatmap::draw(cor_heatmap())
         })
 
         # interactive heatmap
         output$main_heatmap <- renderPlot({
-          shiny_env$ht = draw(cor_heatmap)
+          shiny_env$ht = draw(cor_heatmap())
           shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
         }, width = 750, height = 750)
 
