@@ -877,7 +877,7 @@ comparaUI <- function(id, label="Cross species comparison") {
       ),
 
       shinydashboard::box(
-        "Selected cell type pair:", width = 4, height = 800, solidHeader=FALSE,
+        "Selected cell type pair:", width = 4, height = 900, solidHeader=FALSE,
         br(),
         h5("Click on the cell in heatmap to see details about cell type pair similarity."),
         # file
