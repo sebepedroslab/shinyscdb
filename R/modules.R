@@ -333,7 +333,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         search.column = c("gene_id","gene name","PFAM domain")
       )
       DB_PATH <- file.path(INPUT_DIR, custom_db_path)
-      proteins <- readAAStringSet(file = DB_PATH)
+      proteins <- Biostrings::readAAStringSet(file = DB_PATH)
 
       # BLAST genes
       blastresults <- eventReactive(input$blast, {
@@ -508,7 +508,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         },
         content = function(file) {
           proteins_selected <- proteins[selected_search_gene()]
-          writeXStringSet(proteins_selected, file)
+          Biostrings::writeXStringSet(proteins_selected, file)
         }
       )
     }
