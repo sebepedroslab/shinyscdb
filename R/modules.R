@@ -28,14 +28,18 @@ introUI <- function(id, label="Intro") {
         withSpinner(
           tableOutput(ns("cell_annot_table")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = TRUE
-        )
+        ),
+        downloadButton(ns("download_cell_ann"),"Download annotation")
       )
     ),
     shiny::fluidRow(
       shinydashboard::box(
-        title="Gene expression heatmap", width = 12, height = 3200, solidHeader=FALSE,
+        title="Gene expression", width = 12, height = 3200, solidHeader=FALSE,
+        downloadButton(ns("download_mc"),"Download metacell FC table"),
+        downloadButton(ns("download_sc"),"Download single cell counts table"),
+        br(),
         shiny::h5(
-          "Heatmap showing relative enrichment of UMIs for genes (rows) in metacells (column number IDs)
+          "Heatmap  below is showing relative enrichment of UMIs for genes (rows) in metacells (column number IDs)
           grouped in cell types (column color bar annotation). You can customize the number of genes shown in the heatmap below."
         ),
         br(),
@@ -135,17 +139,41 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         ),
         height = function() {
           height = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
-          pmin(height, 900)
+          pmin(height, 800)
         },
         width = function() {
           width = session$clientData[[sprintf("output_%s-plot_2d_proj_width",id)]]
-          pmin(width, 900)
+          pmin(width, 800)
         }
       )
       output$cell_annot_table <- function() {
         summarize_cell_annotation(CELL_ANNT)
       }
 
+      # Downloads
+      output$download_cell_ann <- downloadHandler(
+        filename = sprintf("metacell_annotation_%s.tsv",config_id),
+        content = function(file) {
+          write.table(CELL_ANNT, file, sep="\t", row.names=FALSE, quote=FALSE)
+          message("Saved metacell annotation")
+        }
+      )
+
+      output$download_mc <- downloadHandler(
+        filename = sprintf("metacell_fc_%s.RDS",config_id),
+        content = function(file) {
+          saveRDS(MCFP, file)
+          message("Saved mc counts")
+        }
+      )
+
+      output$download_sc <- downloadHandler(
+        filename = sprintf("counts_%s.RDS",config_id),
+        content = function(file) {
+          saveRDS(UMICOUNTSC, file)
+          message("Saved sc counts")
+        }
+      )
     }
   )
 }
@@ -158,20 +186,47 @@ singleGeneUI <- function(id, label="Single gene expression") {
   shiny::tagList(
     shiny::fluidRow(
       shinydashboard::box(
-        title="Gene search", width=6, solidHeader = TRUE,
-        shiny::selectInput(
-          inputId=ns("search_id"),
-          label="Search gene by name or id",
-          choices=NULL,
-          selectize = TRUE
+        title="Gene search", width=12, solidHeader = TRUE,
+        radioButtons(
+          ns("geneselecttype"), label = "Choose gene",
+          choices = list("Select gene" = "search",  "BLAST" = "blast"),
+          selected = "search"
+        ),
+        conditionalPanel(
+          condition = "input.geneselecttype == 'search'", ns = ns,
+          shiny::selectInput(
+            inputId=ns("search_id"),
+            label="Search gene by name or id",
+            choices=NULL,
+            selectize = TRUE
+          )
+        ),
+        conditionalPanel(
+          condition = "input.geneselecttype == 'blast'", ns = ns,
+          textAreaInput(ns("query"), 'Input sequence:', value = "", placeholder = "", width = "600px", height="200px"),
+          fluidRow(
+            column(width = 2, selectInput(ns("program"), "Program:", choices=c("blastp"))),
+            column(width = 2, selectInput(ns("eval"), "e-value:", choices=c(1,0.001,1e-4,1e-5,1e-10))),
+            column(width = 2),
+            column(width = 3, actionButton(ns("blast"), "BLAST!"))
+          ),
+          br(),
+          withSpinner(
+            DT::dataTableOutput(ns("blastResults")),
+            type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          ),
+          br(),
+          fluidRow(
+            column(width = 5, h4("Selected: "), tableOutput(ns("clicked"))),
+            column(width = 7, verbatimTextOutput(ns("alignment")) )
+          ),
+          br()
         )
       ),
       shinydashboard::box(
-        title="Your search:", width=6, solidHeader=TRUE,
-        #withSpinner(
-          tableOutput(ns("single_gene"))
-        #  type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-        #)
+        title="Your search:", width=12, solidHeader=TRUE,
+        tableOutput(ns("single_gene")),
+        downloadButton(ns("download_gene_seq"),"Download FASTA")
       )
     ),
     shiny::fluidRow(
@@ -179,9 +234,19 @@ singleGeneUI <- function(id, label="Single gene expression") {
         title="2D projection", width=8, height = 1000, solidHeader=FALSE,
         tryCatch(
           withSpinner(
-            shiny::plotOutput(ns("gene_2d"), height = 900),
+            shiny::plotOutput(ns("gene_2d"), height = 800),
             type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
           ), error=function(e) NULL
+        ),
+        dropdownButton(
+          checkboxGroupButtons(
+            inputId = ns("plot_2d_customize"),
+            label = "Show",
+            choices = c("Cells", "Metacells", "Labels", "Links"),
+            selected = c("Cells", "Metacells", "Labels")
+          ),
+          circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
+          tooltip = tooltipOptions(title = "Click to customize")
         )
       ),
       shinydashboard::box(
@@ -251,6 +316,8 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
       mc2d_obj <-  conf[[config_id]]$mc2d_file
       cell_type_annotation <- conf[[config_id]]$ann_file
       gene_annotation <-  conf[[config_id]]$gene_annot_file
+      custom_db <- config_id
+      custom_db_path <- conf[[config_id]]$fasta_file
 
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       UMICOUNTS <- readRDS(file = file.path(INPUT_DIR, raw_counts))
@@ -265,26 +332,147 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         col.names = c("gene_id","gene name","PFAM domain"),
         search.column = c("gene_id","gene name","PFAM domain")
       )
+      DB_PATH <- file.path(INPUT_DIR, custom_db_path)
+      proteins <- readAAStringSet(file = DB_PATH)
 
+      # BLAST genes
+      blastresults <- eventReactive(input$blast, {
+
+        #gather input and set up temp file
+        query <- input$query
+        tmp <- tempfile(fileext = ".fa")
+
+        #this makes sure the fasta is formatted properly
+        if (startsWith(query, ">")){
+          writeLines(query, tmp)
+        } else {
+          writeLines(paste0(">Query\n",query), tmp)
+        }
+
+        # calls the blast
+        blast_cmd <- paste0(input$program," -query ",tmp," -db ",DB_PATH," -evalue ",input$eval," -outfmt 5 -max_hsps 1 -max_target_seqs 10")
+        print(blast_cmd)
+        data <- system(blast_cmd, intern = T)
+        XML::xmlParse(data)
+      }, ignoreNULL= T)
+
+      #Now to parse the results...
+      parsedresults <- reactive({
+        if (is.null(blastresults())){}
+        else {
+          xmltop = xmlRoot(blastresults())
+
+          #the first chunk is for multi-fastas
+          results <- xpathApply(blastresults(), '//Iteration',function(row){
+            query_ID <- getNodeSet(row, 'Iteration_query-def') %>% sapply(., xmlValue)
+            hit_IDs <- getNodeSet(row, 'Iteration_hits//Hit//Hit_id') %>% sapply(., xmlValue)
+            hit_length <- getNodeSet(row, 'Iteration_hits//Hit//Hit_len') %>% sapply(., xmlValue)
+            bitscore <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_bit-score') %>% sapply(., xmlValue)
+            eval <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_evalue') %>% sapply(., xmlValue)
+            cbind(query_ID,hit_IDs,hit_length,bitscore,eval)
+          })
+          #this ensures that NAs get added for no hits
+          rbind.fill(lapply(results,function(y){as.data.frame((y),stringsAsFactors=FALSE)}))
+        }
+      })
+
+      #makes the datatable
+      output$blastResults <- DT::renderDataTable({
+        if (is.null(blastresults())){
+        } else {
+          datatable(parsedresults(), selection=list(mode="single", selected=1, target="row"))
+        }
+      })
+
+     # this chunk gets the alignment information from a clicked row
+     clicked_hit <- reactive({
+        clicked = input$blastResults_rows_selected
+        # print(sprintf("Clicked BLAST hit: %s",clicked))
+        # print(parsedresults())
+        parsedresults()[clicked,2]
+      })
+      output$clicked <- renderTable({
+        if(is.null(input$blastResults_rows_selected)){}
+        else{
+          xmltop = xmlRoot(blastresults())
+          clicked = input$blastResults_rows_selected
+          tableout<- data.frame(parsedresults()[clicked,])
+
+          tableout <- t(tableout)
+          names(tableout) <- c("")
+          rownames(tableout) <- c("Query ID","Hit ID", "Length", "Bit Score", "e-value")
+          colnames(tableout) <- NULL
+          data.frame(tableout)
+        }
+      },rownames =T,colnames =F)
+
+      #this chunk makes the alignments for clicked rows
+      output$alignment <- renderText({
+        if(is.null(input$blastResults_rows_selected)){}
+        else{
+          xmltop = xmlRoot(blastresults())
+
+          clicked = input$blastResults_rows_selected
+
+          #loop over the xml to get the alignments
+          align <- xpathApply(blastresults(), '//Iteration',function(row){
+            top <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_qseq') %>% sapply(., xmlValue)
+            mid <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_midline') %>% sapply(., xmlValue)
+            bottom <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_hseq') %>% sapply(., xmlValue)
+            rbind(top,mid,bottom)
+          })
+
+          #split the alignments every 40 carachters to get a "wrapped look"
+          alignx <- do.call("cbind", align)
+          splits <- strsplit(gsub("(.{40})", "\\1,", alignx[1:3,clicked]),",")
+
+          #paste them together with returns '\n' on the breaks
+          split_out <- lapply(1:length(splits[[1]]),function(i){
+            rbind(paste0("Q-",splits[[1]][i],"\n"),paste0("M-",splits[[2]][i],"\n"),paste0("H-",splits[[3]][i],"\n"))
+          })
+          unlist(split_out)
+        }
+      })
+
+      # Select genes
       updateSelectizeInput(
         session, "search_id",
         choices = GENE_ANNT[GENE_ANNT[[1]] %in% ALL_GENES, search_id],
         server = TRUE
       )
 
+      # get selected gene
+      selected_search_gene <- reactive({
+        if (input$geneselecttype=="search") {
+          GENE_ANNT[search_id==input$search_id]$gene_id
+        } else if (input$geneselecttype=="blast") {
+          clicked_hit()
+        }
+      })
+
       # mini table showing gene name and id
+      mini_gene_tab <- reactive(
+        if (input$geneselecttype=="search") {
+          GENE_ANNT[search_id==input$search_id, 1:(ncol(GENE_ANNT)-1)]
+        } else if (input$geneselecttype=="blast") {
+          GENE_ANNT[gene_id==clicked_hit()[1], 1:(ncol(GENE_ANNT)-1)]
+        }
+      )
       output$single_gene <- renderTable(
-        GENE_ANNT[search_id==input$search_id, 1:(ncol(GENE_ANNT)-1)])
+        mini_gene_tab()
+      )
 
       # barplot of gene umifrac
       cttable = as.data.frame(CELL_ANNT)
-      output$gene_barplot <- shiny::renderPlot(
+      output$gene_barplot <- shiny::renderPlot({
+        print(sprintf("Selected search gene: %s",selected_search_gene()))
         sg_plot(
           nmat=MCFP, umat=UMIFRAC, cttable=cttable, order_by=input$order_bars_by,
-          sid=input$search_id, mdnorm=FALSE, annt=GENE_ANNT,
+          gene_id=selected_search_gene(), mdnorm=FALSE, annt=GENE_ANNT,
           mc_label_size=input$mc_label_size
-        ),
-        height = 600
+        )
+      },
+      height = 600
       )
 
       # 2d projection
@@ -292,8 +480,9 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         tryCatch({
           scp_plot_sc_2d_gene_exp(
             mc2d=MC2D, nmat=MCFP, umat=UMICOUNTSC,
-            sid=input$search_id, annt=GENE_ANNT,
-            plot_mcs=TRUE, plot_edges=FALSE, plot_mc_name=FALSE,
+            gene_id=selected_search_gene(), annt=GENE_ANNT,
+            # plot_mcs=TRUE, plot_edges=FALSE, plot_mc_name=FALSE,
+            customize=input$plot_2d_customize,
             do_umifrac_sc=TRUE, sc_max=NULL, sc_zero_color = "aliceblue"
           )
         },  error = function(e) plot.new()),
@@ -306,11 +495,24 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
           pmin(width, 900)
         }
       )
+
+      # cell type table
       output$cell_annot_table <- function() {
         summarize_cell_annotation(CELL_ANNT)
       }
 
+      # Download
+      output$download_gene_seq <- downloadHandler(
+        filename = function() {
+          sprintf("%s.fasta",selected_search_gene())
+        },
+        content = function(file) {
+          proteins_selected <- proteins[selected_search_gene()]
+          writeXStringSet(proteins_selected, file)
+        }
+      )
     }
+
   )
 
 }

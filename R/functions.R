@@ -1,3 +1,10 @@
+require(XML)
+require(plyr)
+require(dplyr)
+require(DT)
+require(data.table)
+require(stringr)
+
 # Exported functions -----------------------------------------------------------
 
 #' Import gene annotations
@@ -127,7 +134,7 @@ summarize_cell_annotation <- function(annt) {
 #' @param order_by `"metacell"` (numerically) or `"cell_type"` (as ordeerd in the annotation file)
 #' @param ctpalette custom colours; if `NULL`, colors taken from metacell anotation file
 sg_plot  <- function(
-  nmat, umat, cttable, gid=NULL, sid=NULL,
+  nmat, umat, cttable, gene_id, gid=NULL, sid=NULL,
   mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, mc_label_size=9
 ){
   # print("begin sg_plot")
@@ -136,13 +143,15 @@ sg_plot  <- function(
   ctb <- setDT(copy(cttable))
 
   # selected gene
-  if (all(is.null(gid),is.null(sid)))
-    stop("Need to specify either gid or sid!")
-  if (is.null(gid))
-    gid <- as.character(annt[search_id==sid,gene_id])
+  # if (all(is.null(gid),is.null(sid)))
+  #   stop("Need to specify either gid or sid!")
+  # if (!is.null(gid)) {print(sprintf("Plotting %s",gid))} else {print(sprintf("Matching %s for plotting",sid))}
+  # if (is.null(gid))
+  #   gid <- as.character(annt[search_id==sid,gene_id])
+
   # selected gene umi count
   gxp <- tryCatch(
-    structure(as.numeric(umat[gid,])*10, names=colnames(umat)),
+    structure(as.numeric(umat[gene_id,])*10, names=colnames(umat)),
     error = function(e) 0
   )
   if (mdnorm==TRUE)
@@ -150,7 +159,7 @@ sg_plot  <- function(
   # print(sprintf("umi counts: %s", paste(head(gxp),collapse = ",")))
   # selected gene lfc
   gxl <- tryCatch(
-    structure(as.numeric(nmat[gid,]), names=colnames(nmat)),
+    structure(as.numeric(nmat[gene_id,]), names=colnames(nmat)),
     error = function(e) 0
   )
   # print(sprintf("lfc: %s", paste(head(gxl),collapse = ",")))
@@ -167,12 +176,12 @@ sg_plot  <- function(
   }
 
   # gene names
-  gene_name <- as.character(annt[annt[[1]]==gid,1])
-  gene_domain <- as.character(annt[annt[[1]]==gid,2])
-  gene_hsap <- as.character(annt[annt[[1]]==gid,3])
-  bptitle <- paste(gene_name, gene_domain)
-  if (gene_name!=gene_hsap)
-    bptitle <- paste(bptitle, gene_hsap)
+  # gene_name <- as.character(annt[annt[[1]]==gene_id,1])
+  # gene_domain <- as.character(annt[annt[[1]]==gene_id,2])
+  # gene_hsap <- as.character(annt[annt[[1]]==gene_id,3])
+  # bptitle <- paste(gene_name, gene_domain)
+  # if (gene_name!=gene_hsap)
+  #   bptitle <- paste(bptitle, gene_hsap)
 
   # order
   # if (all(gdata$cell_type %in% names(ctpalette))) {
@@ -208,7 +217,7 @@ sg_plot  <- function(
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
       x="metacells", y="UMI/10k",
-      title=bptitle, fill="cell type"
+      title=gene_id, fill="cell type"
     ) +
     ggplot2::scale_y_continuous(expand=c(0,0)) +
     ggplot2::geom_hline(yintercept=max(gxp), lty=2) +
@@ -218,6 +227,7 @@ sg_plot  <- function(
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
+      plot.title=element_text(size=14, face="bold"),
       axis.ticks.length.x = unit(0, "cm"),
       text = element_text(size=18)
     )
@@ -260,7 +270,8 @@ scp_plot_sc_2d_gene_exp = function(
   mc2d,
   nmat,
   umat,
-  sid, annt, gene_id=NULL,
+  customize,
+  annt, gene_id=NULL,
   sc_vector = NULL,
   sc_scale = "unidir",
   sc_transform = NULL,
@@ -278,9 +289,9 @@ scp_plot_sc_2d_gene_exp = function(
   mc_zero_color = NULL,
   unidir_color_scale = c("gray90","orange","orangered2","#520c52"),
   bidir_color_scale = c("midnightblue","dodgerblue3","deepskyblue","#b8e0ed","gray90","#eccac0","#ff8d36","#f34312","#8e0631"),
-  plot_edges=TRUE,
-  plot_mcs=TRUE,
-  plot_mc_name=TRUE,
+  # plot_edges=TRUE,
+  # plot_mcs=TRUE,
+  # plot_mc_name=TRUE,
   width=12,
   height=12,
   res=NA,
@@ -288,16 +299,35 @@ scp_plot_sc_2d_gene_exp = function(
   cex_sc=0.75,
   do_axes=FALSE) {
 
-  # get expression vectors (if not already provided)
-  gene_id <- as.character(annt[search_id==sid,gene_id])
 
+  customize <- tolower(customize)
+  if ("cells" %in%  customize) {
+    plot_scs <- TRUE
+  } else {
+    plot_scs <- FALSE
+  }
+  if ("metacells" %in%  customize) {
+    plot_mcs <- TRUE
+  } else {
+    plot_mcs <- FALSE
+  }
+  if ("labels" %in%  customize) {
+    plot_mc_name <- TRUE
+  } else {
+    plot_mc_name <- FALSE
+  }
+  if ("links" %in%  customize) {
+    plot_edges <- TRUE
+  } else {
+    plot_edges <- FALSE
+  }
+
+  # get expression vectors (if not already provided)
   if (is.null(sc_vector)) {
-    gid <- match(gene_id,rownames(umat))
-    sc_vector = umat[gid,]
+    sc_vector = umat[gene_id,]
   }
   if (is.null(mc_vector)) {
-    gid <- match(gene_id,rownames(nmat))
-    mc_vector = nmat[gid,]
+    mc_vector = nmat[gene_id,]
   }
 
   # apply transformations
@@ -375,6 +405,9 @@ scp_plot_sc_2d_gene_exp = function(
   }
 
   # plot individual cells
+  if (!plot_scs) {
+    cex_sc = 0
+  }
   plot(
     mc2d@sc_x,
     mc2d@sc_y,

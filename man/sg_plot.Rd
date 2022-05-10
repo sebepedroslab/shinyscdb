@@ -8,6 +8,7 @@ sg_plot(
   nmat,
   umat,
   cttable,
+  gene_id,
   gid = NULL,
   sid = NULL,
   mdnorm = FALSE,
