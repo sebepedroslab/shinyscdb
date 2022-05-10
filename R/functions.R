@@ -583,7 +583,7 @@ mgenes_hmap <- function(
   scale_expression_fc = 4, # trim expression values, i.e. set anything > scale_expression_fc to this value
   heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
   ct_table, cell_type_palette = NULL, cluster_genes = TRUE,
-  mcid_font_size = 12, mc_annotaion_height = unit(2, "mm")
+  gene_font_size = 12,mcid_font_size = 12, mc_annotaion_height = unit(2, "mm")
 ){
 
   # selected genes
@@ -694,7 +694,9 @@ mgenes_hmap <- function(
     show_column_dend = FALSE, show_row_dend = FALSE,
     show_column_names = TRUE, show_row_names = TRUE,
     row_names_side = "left", column_names_side = "bottom",
-    column_names_gp = gpar(fontsize = mcid_font_size), border = TRUE,
+    column_names_gp = gpar(fontsize = mcid_font_size),
+    row_names_gp = gpar(fontsize = gene_font_size),
+    border = TRUE,
     col = col_fun, rect_gp = gpar(col = "gray88", lwd = 0.1),
     bottom_annotation = ct_ann, top_annotation = ct_ann,
     right_annotation = gs_ann,

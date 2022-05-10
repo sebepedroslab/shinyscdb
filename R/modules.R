@@ -42,7 +42,7 @@ introUI <- function(id, label="Intro") {
         dropdownButton(
           shiny::sliderInput(
             inputId =  ns("per_clust_genes"), label = "Markers per cluster",
-            min = 1, max = 21, step = 1, value = 10
+            min = 1, max = 21, step = 1, value = 5
           ),
           shiny::sliderInput(
             inputId =  ns("gene_min_fold"), label = "Marker min FC",
@@ -51,7 +51,7 @@ introUI <- function(id, label="Intro") {
           shiny::sliderInput(
             inputId=ns("label_size"),
             label = "Lables size",
-            min = 0, max = 12, step = 1, value = 6
+            min = 0, max = 12, step = 1, value = 10
           ),
           circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
@@ -109,7 +109,8 @@ introServer <- function(id, config_file="config.yaml", config_id) {
         message("blacklisted ", length(orphans), " orphans")
         black_list_genes <- c(bl, orphans)
         scp_plot_cmod_markers_select(
-          mc_fp = MCFP, gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
+          mc_fp = MCFP,
+          gene_annot_file = GENE_ANNT, clust_ord = CELL_ANNT[[1]],
           black_list = black_list_genes,
           per_clust_genes = input$per_clust_genes,
           gene_min_fold = input$gene_min_fold
@@ -215,7 +216,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
               shiny::sliderInput(
                 inputId=ns("mc_label_size"),
                 label = "Metacell lables size",
-                min = 0, max = 10, step = 1, value = 8
+                min = 0, max = 12, step = 1, value = 10
               ),
               circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
               tooltip = tooltipOptions(title = "Click to customize")
@@ -383,6 +384,16 @@ multiGeneUI <- function(id, label="Multi gene expression") {
             inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
             min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
           ),
+          sliderInput(
+            inputId=ns("mcid_font_size"),
+            label = "Metacell lables size",
+            min = 0, max = 12, step = 1, value = 10
+          ),
+          sliderInput(
+            inputId=ns("gene_font_size"),
+            label = "Gene lables size",
+            min = 0, max = 12, step = 1, value = 10
+          ),
           circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
         ),
@@ -489,7 +500,8 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
           cluster_genes=input$clustergenes,
           heatmap_colors=heatmap_colors,
           ct_table=CELL_ANNT,
-          mcid_font_size=6
+          mcid_font_size=input$mcid_font_size,
+          gene_font_size=input$gene_font_size
         ), error = function(e) message("Select at least two genes!"))
       }
       output$genes_hmap <- shiny::renderPlot({
