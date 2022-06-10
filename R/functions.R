@@ -251,7 +251,7 @@ sg_plot  <- function(
     ggplot2::scale_y_continuous(expand=c(0,0)) +
     ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxl), label=max_label, size=5) +
     ggplot2::theme(
-      legend.position="bottom",
+      legend.position="none",
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
@@ -708,13 +708,14 @@ mgenes_hmap <- function(
   names(ganns_tr) <- gs
   if (any(ganns_tr!="")) {
     gs_ann <- ComplexHeatmap::HeatmapAnnotation(
-      which = "row", gn = anno_text(ganns_tr,which="row"),
-      show_annotation_name = FALSE, show_legend = FALSE
+      which = "row", gn = anno_text(ganns_tr,which="row", gp = gpar(fontsize = gene_font_size)),
+      show_annotation_name = FALSE, show_legend = FALSE,
+      gp = gpar(fontsize = gene_font_size)
     )
   } else {
     gs_ann <- ComplexHeatmap::HeatmapAnnotation(
       which = "row", gn = anno_empty(which="row", border = FALSE),
-      show_annotation_name = FALSE, show_legend = FALSE
+      show_annotation_name = FALSE, show_legend = FALSE,
     )
   }
 

@@ -207,18 +207,26 @@ singleGeneUI <- function(id, label="Single gene expression") {
           fluidRow(
             column(width = 2, selectInput(ns("program"), "Program:", choices=c("blastp"))),
             column(width = 2, selectInput(ns("eval"), "e-value:", choices=c(1,0.001,1e-4,1e-5,1e-10))),
-            column(width = 2),
             column(width = 3, actionButton(ns("blast"), "BLAST!"))
           ),
           br(),
-          withSpinner(
-            DT::dataTableOutput(ns("blastResults")),
-            type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+          tryCatch(
+            withSpinner(
+              DT::dataTableOutput(ns("blastResults")),
+              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            ), error=function(e) message(e)
           ),
           br(),
           fluidRow(
-            column(width = 5, h4("Selected: "), tableOutput(ns("clicked"))),
-            column(width = 7, verbatimTextOutput(ns("alignment")) )
+            column(
+              width = 5,
+              h4("Selected: "),
+              tryCatch(tableOutput(ns("clicked")),error=function(e) message(e))
+            ),
+            column(
+              width = 7,
+              tryCatch(verbatimTextOutput(ns("alignment")),error=function(e) message(e))
+            )
           ),
           br()
         )
@@ -354,7 +362,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         print(blast_cmd)
         data <- system(blast_cmd, intern = T)
         XML::xmlParse(data)
-      }, ignoreNULL= T)
+      }, ignoreNULL= TRUE)
 
       #Now to parse the results...
       parsedresults <- reactive({
@@ -387,28 +395,28 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
      # this chunk gets the alignment information from a clicked row
      clicked_hit <- reactive({
         clicked = input$blastResults_rows_selected
-        # print(sprintf("Clicked BLAST hit: %s",clicked))
-        # print(parsedresults())
         parsedresults()[clicked,2]
       })
       output$clicked <- renderTable({
-        if(is.null(input$blastResults_rows_selected)){}
+        if (is.null(blastresults())){}
         else{
           xmltop = xmlRoot(blastresults())
           clicked = input$blastResults_rows_selected
           tableout<- data.frame(parsedresults()[clicked,])
 
-          tableout <- t(tableout)
-          names(tableout) <- c("")
-          rownames(tableout) <- c("Query ID","Hit ID", "Length", "Bit Score", "e-value")
-          colnames(tableout) <- NULL
-          data.frame(tableout)
+          if (nrow(tableout)==5) {
+            tableout <- t(tableout)
+            names(tableout) <- c("")
+            rownames(tableout) <- c("Query ID","Hit ID", "Length", "Bit Score", "e-value")
+            colnames(tableout) <- NULL
+            data.frame(tableout)
+          } else {NULL}
         }
-      },rownames =T,colnames =F)
+      },rownames =TRUE,colnames =FALSE)
 
       #this chunk makes the alignments for clicked rows
       output$alignment <- renderText({
-        if(is.null(input$blastResults_rows_selected)){}
+        if (is.null(blastresults())){}
         else{
           xmltop = xmlRoot(blastresults())
 
@@ -659,14 +667,20 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       )
       selected_genes <- reactiveValues()
       selected_genes$values <- c()
-      observeEvent(input$add_genes, {
-        g <- genes_select_names(dt=genes_dt(),rid=input$geneSelectDT_rows_selected)
-        selected_genes$values <- c(selected_genes$values, g)
-      })
-      observeEvent(input$add_all_genes, {
-        g <- genes_dt()$gene_id
-        selected_genes$values <- c(selected_genes$values, g)
-      })
+      observeEvent(
+        input$add_genes,
+        tryCatch({
+          g <- genes_select_names(dt=genes_dt(),rid=input$geneSelectDT_rows_selected)
+          selected_genes$values <- c(selected_genes$values, g)
+        }, error = function(e) message("Select at least two genes!"))
+      )
+      observeEvent(
+        input$add_all_genes,
+        tryCatch({
+          g <- genes_dt()$gene_id
+          selected_genes$values <- c(selected_genes$values, g)
+      }, error = function(e) message("There should be at least two genes!"))
+      )
       observeEvent(input$clear_genes, {
         selected_genes$values <- c()
       })
@@ -695,6 +709,7 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
 
       # Heatmap of selected genes
       plotting_f <- function() {
+        message("Plotting function")
         tryCatch(mgenes_hmap(
           nmat=MCFP, annt=GENE_ANNT, gids=selected_genes$values,
           min_expression_fc=input$min_expression_fc,
