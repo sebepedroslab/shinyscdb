@@ -1053,12 +1053,7 @@ comparaUI <- function(id, label="Cross species comparison") {
           ns("metric"), "Similarity metric",
           choices = c(
             "weighted pearson correlation" = "wpearson",
-            "weighted spearman correlation" = "wspearman",
-            "Jaccard index" = "jaccard",
-            "Shafer index" = "shaferindex",
-            "Kullback–Leibler divergence" = "kld",
-            "Jensen–Shannon divergence" = "jsd",
-            "orthogonal least squares" = "onls"
+            "Jaccard index" = "jaccard"
           ), multiple = FALSE
         ),
 
@@ -1075,7 +1070,7 @@ comparaUI <- function(id, label="Cross species comparison") {
         # select fold-change
         shiny::selectInput(
           ns("fcthrs"), "Gene fold-change threshold",
-          choices = c(1.1, 1.5, 2), multiple = FALSE
+          choices = c(1.25, 1.5, 2), multiple = FALSE
         )
 
       ),
