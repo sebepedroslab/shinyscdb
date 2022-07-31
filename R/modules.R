@@ -205,7 +205,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
           condition = "input.geneselecttype == 'blast'", ns = ns,
           textAreaInput(ns("query"), 'Input sequence:', value = "", placeholder = "", width = "600px", height="200px"),
           fluidRow(
-            column(width = 2, selectInput(ns("program"), "Program:", choices=c("blastp"))),
+            column(width = 2, selectInput(ns("program"), "Program:", choices=c("blastp","blastx"))),
             column(width = 2, selectInput(ns("eval"), "e-value:", choices=c(1,0.001,1e-4,1e-5,1e-10))),
             column(width = 3, actionButton(ns("blast"), "BLAST!"))
           ),
