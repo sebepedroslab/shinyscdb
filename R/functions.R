@@ -101,13 +101,13 @@ red_mc_vector <- function(x,range_sep=":") {
 summarize_cell_annotation <- function(annt) {
 
   setDT(annt)
-  setorder(annt,"mc")
-  tanns <- tapply(annt$mc, annt$cell_type, red_mc_vector)
+  setorderv(annt,colnames(annt)[1])
+  tanns <- tapply(annt[[1]], annt[[2]], red_mc_vector)
 
   dt <- data.table(
-    'cell type' = unique(annt$cell_type),
-    metacells = tanns[unique(annt$cell_type)],
-    cols = annt$color[match(unique(annt$cell_type),annt$cell_type)]
+    'cell type' = unique(annt[[2]]),
+    metacells = tanns[unique(annt[[2]])],
+    cols = annt[[3]][match(unique(annt[[2]]),annt[[2]])]
   )
   dt[, colshex := col2hex(cols)]
   dt[, lightness := ligt_or_dark(cols), 1:nrow(dt)]
@@ -212,7 +212,7 @@ sg_plot  <- function(
       data=gdata,
       aes(x=metacell, y=lfp, fill=cell_type)
     ) +
-    ggplot2::geom_bar(stat="identity", colour="grey") +
+    ggplot2::geom_bar(stat="identity") +
     ggplot2::geom_blank(aes(y=1.2*lfp)) +
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
@@ -240,7 +240,7 @@ sg_plot  <- function(
       data=gdata,
       aes(x=metacell, y=lfc, fill=cell_type)
     ) +
-    ggplot2::geom_bar(stat="identity", colour="grey") +
+    ggplot2::geom_bar(stat="identity") +
     ggplot2::geom_blank(aes(y=1.2*lfc)) +
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
@@ -855,7 +855,6 @@ mc_gene_summary <- function(
 #'
 #' @param mc_object loaded metacell object (`gMCCov` class)
 #' @param black_list character, blacklisted genes
-#' @param sub_list_mc
 #' @param gene_list character, list of genes to plot, if NULL (default) ...
 #' @param order_genes logical, whether to cluster genes (default: TRUE)
 #' @param gene_annot_file charcter, file path to the file containig gene annotations,
