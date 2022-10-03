@@ -5,6 +5,7 @@ require(DT)
 require(data.table)
 require(stringr)
 require(patchwork)
+require(rtracklayer)
 
 # Exported functions -----------------------------------------------------------
 
@@ -285,7 +286,7 @@ sg_plot  <- function(
 
   # plot
   if (!is.null(umat)) {
-    ggp <- egg::ggarrange(gp_logfc, gp_umi_frac, nrow=2, ncol=1)
+    ggp <- gp_umi_frac / gp_logfc
   } else {
     ggp <- gp_logfc
   }

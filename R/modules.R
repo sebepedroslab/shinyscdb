@@ -1509,7 +1509,7 @@ orthgServer <- function(id, config_file="config.yaml") {
       output$og_genes <- renderTable(selected_ogs_dt())
 
       # barplot of gene umifrac
-      barplot_list <- reactive(lapply(selected_ogs(), function(sg) {
+      barplot_list <- reactive(lapply(selected_ogs_dt()$gene_id, function(sg) {
         sp <- str_extract(sg, paste(sps, collapse = "|"))
         sg_plot(
           nmat=gene_expression_list[[sp]], cttable=ct_ann_list[[sp]],
