@@ -78,7 +78,6 @@ ligt_or_dark <- function(color) {
   }
 }
 
-
 #' Reduce vector of metacells
 red_mc_vector <- function(x,range_sep=":") {
   all_mcs <- sort(as.integer(x))
@@ -123,6 +122,35 @@ summarize_cell_annotation <- function(annt) {
     scroll_box(height = "900px", box_css = "border: 0px none #ddd; padding: 5px; ")
 }
 
+#' Create a transcript to gene dictionary from a GTF annotation file
+dictionary_t2g = function(gtf_fn, vector_to_fix, t2g = TRUE, transcript_field = "transcript", transcript_id = "transcript_id", gene_id = "gene_id", return_elements_not_in_gtf = TRUE) {
+
+  # import gtf
+  gene_txgtf = rtracklayer::import(gtf_fn)
+
+  if (t2g) {
+    dic = as.data.frame(GenomicRanges::mcols(gene_txgtf[gene_txgtf$type == transcript_field]))[,gene_id]
+    names(dic) = as.data.frame(GenomicRanges::mcols(gene_txgtf[gene_txgtf$type == transcript_field]))[,transcript_id]
+  } else {
+    dic = as.data.frame(GenomicRanges::mcols(gene_txgtf[gene_txgtf$type == transcript_field]))[,transcript_id]
+    names(dic) = as.data.frame(GenomicRanges::mcols(gene_txgtf[gene_txgtf$type == transcript_field]))[,gene_id]
+  }
+
+  # return object
+
+  out = dic [ vector_to_fix ]
+
+  # return elements not in GTF dictionary, unaltered
+  if (return_elements_not_in_gtf) {
+    ixs_to_keep = is.na(out)
+    out[ixs_to_keep] = vector_to_fix[ixs_to_keep]
+    names(out[ixs_to_keep]) = out[ixs_to_keep]
+  }
+
+  # return
+  out
+
+}
 # Plotting functions -----------------------------------------------------------
 
 #' Plot an expression barplots of a gene
@@ -134,39 +162,39 @@ summarize_cell_annotation <- function(annt) {
 #' @param order_by `"metacell"` (numerically) or `"cell_type"` (as ordeerd in the annotation file)
 #' @param ctpalette custom colours; if `NULL`, colors taken from metacell anotation file
 sg_plot  <- function(
-  nmat, umat, cttable, gene_id, gid=NULL, sid=NULL,
-  mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, mc_label_size=9
+  nmat, umat=NULL, cttable, gene_id, gid=NULL, sid=NULL,
+  mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position="none",
+  mc_label_size=9, title=FALSE, caption="Dashed line indicates the maximum observed value."
 ){
-  # print("begin sg_plot")
-  # print(head(cttable))
-  # print("...")
-  ctb <- setDT(copy(cttable))
 
-  # selected gene
-  # if (all(is.null(gid),is.null(sid)))
-  #   stop("Need to specify either gid or sid!")
-  # if (!is.null(gid)) {print(sprintf("Plotting %s",gid))} else {print(sprintf("Matching %s for plotting",sid))}
-  # if (is.null(gid))
-  #   gid <- as.character(annt[search_id==sid,gene_id])
+  ctb <- setDT(copy(cttable))
+  setnames(ctb, c("metacell","cell_type","color"))
 
   # selected gene umi count
-  gxp <- tryCatch(
-    structure(as.numeric(umat[gene_id,])*10, names=colnames(umat)),
-    error = function(e) 0
-  )
-  if (mdnorm==TRUE)
-    gxp <- structure(log2(gxp/median(gxp)), names=colnames(umat))
-  # print(sprintf("umi counts: %s", paste(head(gxp),collapse = ",")))
+  if (!is.null(umat)) {
+    gxp <- tryCatch(
+      structure(as.numeric(umat[gene_id,])*10, names=colnames(umat)),
+      error = function(e) 0
+    )
+    if (mdnorm==TRUE)
+      gxp <- structure(log2(gxp/median(gxp)), names=colnames(umat))
+  }
+
   # selected gene lfc
   gxl <- tryCatch(
     structure(as.numeric(nmat[gene_id,]), names=colnames(nmat)),
     error = function(e) 0
   )
-  # print(sprintf("lfc: %s", paste(head(gxl),collapse = ",")))
+
+  # all data
   gdata <- data.table(
-    metacell=colnames(umat),
-    cell_type=ctb[match(colnames(umat),mc)]$cell_type
-  )[,lfp:=gxp[metacell]][,lfc:=gxl[metacell]]
+    metacell=colnames(nmat),
+    cell_type=ctb[match(colnames(nmat),metacell)]$cell_type
+  )
+  gdata[,lfc:=gxl[metacell]]
+
+  if (!is.null(umat))
+    gdata[,lfp:=gxp[metacell]]
 
   # cell type colours
   if (is.null(ctpalette)) {
@@ -175,26 +203,17 @@ sg_plot  <- function(
     names(ctpalette) <- ctpalette_dt$cell_type
   }
 
-  # gene names
-  # gene_name <- as.character(annt[annt[[1]]==gene_id,1])
-  # gene_domain <- as.character(annt[annt[[1]]==gene_id,2])
-  # gene_hsap <- as.character(annt[annt[[1]]==gene_id,3])
-  # bptitle <- paste(gene_name, gene_domain)
-  # if (gene_name!=gene_hsap)
-  #   bptitle <- paste(bptitle, gene_hsap)
-
   # order
-  # if (all(gdata$cell_type %in% names(ctpalette))) {
-  #   gdata[, cell_type := factor(cell_type, levels=names(ctpalette))]
-  # }
   if (order_by=="metacell") {
-    order_levels <- as.character(sort(as.integer(cttable$mc)))
+    order_levels <- as.character(sort(as.integer(ctb$metacell)))
   } else if (order_by=="cell_type") {
-    order_levels <- as.character(cttable$mc)
+    ctb[,cell_type:=factor(cell_type,levels=unique(ctb$cell_type))]
+    setorder(ctb, cell_type)
+    order_levels <- as.character(ctb$metacell)
   }
-  # print(sprintf("order: %s", paste(order_levels, collapse = " ")))
+
   if (all(gdata$metacell %in% order_levels)) {
-    gdata[,metacell := factor(metacell, levels=order_levels)]
+    gdata[,metacell:=factor(metacell, levels=order_levels)]
   } else {
     warning(sprintf(
       "Some metacells could not be mapped to levels from annotaion file: %s",
@@ -205,38 +224,41 @@ sg_plot  <- function(
   setorder(gdata, metacell)
 
   # umi frac barplot
-  max_label <- sprintf(" %.2f", max(gxp))
-  pst_x_max <- which( gxp == max(gxp) ) ; pst_x_max <- pst_x_max[1]
+  if (!is.null(umat)) {
 
-  gp_umi_frac <- ggplot2::ggplot(
+    max_label <- sprintf(" %.2f", max(gxp))
+    pst_x_max <- which( gxp == max(gxp) ) ; pst_x_max <- pst_x_max[1]
+
+    gp_umi_frac <- ggplot2::ggplot(
       data=gdata,
       aes(x=metacell, y=lfp, fill=cell_type)
     ) +
-    ggplot2::geom_bar(stat="identity") +
-    ggplot2::geom_blank(aes(y=1.2*lfp)) +
-    ggplot2::scale_fill_manual(values=ctpalette) +
-    ggplot2::labs(
-      x="metacells", y="UMI/10k",
-      title=gene_id, fill="cell type"
-    ) +
-    ggplot2::scale_y_continuous(expand=c(0,0)) +
-    ggplot2::geom_hline(yintercept=max(gxp), lty=2) +
-    ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxp), label=max_label, size=5) +
-    ggplot2::theme(
-      legend.position="none",
-      panel.background=element_blank(),
-      axis.line=element_line(colour="black"),
-      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
-      plot.title=element_text(size=14, face="bold"),
-      axis.ticks.length.x = unit(0, "cm"),
-      text = element_text(size=18)
-    )
+      ggplot2::geom_bar(stat="identity") +
+      ggplot2::geom_blank(aes(y=1.2*lfp)) +
+      ggplot2::scale_fill_manual(values=ctpalette) +
+      ggplot2::labs(
+        x="metacells", y="UMI/10k",
+        title=gene_id, fill="cell type"
+      ) +
+      ggplot2::scale_y_continuous(expand=c(0,0)) +
+      ggplot2::geom_hline(yintercept=max(gxp), lty=2) +
+      ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxp), label=max_label, size=5) +
+      ggplot2::theme(
+        legend.position="none",
+        panel.background=element_blank(),
+        axis.line=element_line(colour="black"),
+        axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
+        plot.title=element_text(size=14, face="bold"),
+        axis.ticks.length.x = unit(0, "cm"),
+        text = element_text(size=18)
+      )
+  }
 
   # log2fc barplot
   max_label <- sprintf(" %.2f", max(gxl))
   pst_x_max <- which( gxl == max(gxl) ) ; pst_x_max <- pst_x_max[1]
 
-  gp_log_frac <- ggplot2::ggplot(
+  gp_logfc <- ggplot2::ggplot(
       data=gdata,
       aes(x=metacell, y=lfc, fill=cell_type)
     ) +
@@ -244,21 +266,28 @@ sg_plot  <- function(
     ggplot2::geom_blank(aes(y=1.2*lfc)) +
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
-      x="metacells", y="FC", fill="cell type",
-      caption="Dashed line indicates the maximum observed value."
+      x="metacells", y="FC", fill="cell type", caption=caption
     ) +
     ggplot2::geom_hline(yintercept=max(gxl), lty=2) +
     ggplot2::scale_y_continuous(expand=c(0,0)) +
     ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxl), label=max_label, size=5) +
     ggplot2::theme(
-      legend.position="none",
+      legend.position=legend.position,
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
       axis.ticks.length.x = unit(0, "cm"),
       text = element_text(size=18)
     )
-  ggp <- egg::ggarrange(gp_umi_frac, gp_log_frac, nrow=2, ncol=1)
+  if (title==TRUE)
+    gp_logfc <- gp_logfc + labs(title = gene_id)
+
+  # plot
+  if (!is.null(umat)) {
+    ggp <- egg::ggarrange(gp_logfc, gp_umi_frac, nrow=2, ncol=1)
+  } else {
+    ggp <- gp_logfc
+  }
   return(ggp)
 }
 

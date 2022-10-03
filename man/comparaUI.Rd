@@ -2,10 +2,10 @@
 % Please edit documentation in R/modules.R
 \name{comparaUI}
 \alias{comparaUI}
-\title{Cross species comparison landing page}
+\title{User interface for cross species comparison}
 \usage{
 comparaUI(id, label = "Cross species comparison")
 }
 \description{
-Cross species comparison landing page
+User interface for cross species comparison
 }

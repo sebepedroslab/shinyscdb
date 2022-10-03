@@ -471,7 +471,7 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
       )
 
       # barplot of gene umifrac
-      cttable = as.data.frame(CELL_ANNT)
+      cttable = as.data.frame(CELL_ANNT)[,1:3]
       output$gene_barplot <- shiny::renderPlot({
         print(sprintf("Selected search gene: %s",selected_search_gene()))
         sg_plot(
@@ -1027,7 +1027,7 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
 
 }
 
-#' Cross species comparison landing page
+#' User interface for cross species comparison
 #' @export
 comparaUI <- function(id, label="Cross species comparison") {
   ns <- NS(id)
@@ -1124,7 +1124,7 @@ comparaUI <- function(id, label="Cross species comparison") {
   )
 }
 
-#' Server logic for cross-species coparison
+#' Server logic for cross-species comparison
 #' @export
 comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2) {
   shiny::moduleServer(
@@ -1353,3 +1353,193 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
   )
 }
 
+#' Homologos across species
+#' @export
+orthgUI <- function(id, label="Homologs") {
+  ns <- NS(id)
+
+  shiny::tagList(
+    shiny::fluidRow(
+      shinydashboard::box(
+        title="Orthologs search", width=12, solidHeader = TRUE,
+        shiny::selectInput(
+          inputId=ns("search_id"),
+          label="Search gene by name or id",
+          choices=NULL,
+          selectize = TRUE
+        )
+      ),
+    ),
+    shiny::fluidRow(
+      shinydashboard::box(
+        title="Your search:", width=12, solidHeader=TRUE,
+        tableOutput(ns("og_genes"))
+      ),
+    ),
+    shiny::fluidRow(
+      shinydashboard::box(
+        title="", width=12, height=2400, solidHeader=TRUE,
+        shiny::fluidRow(
+          shiny::column(
+            width=12,
+            withSpinner(
+              shiny::uiOutput(ns("ui_gene_barplot")),
+              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            ),
+            # withSpinner(
+            #   shiny::plotOutput(ns("gene_barplot")),
+            #   type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            # ),
+            tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
+            dropdownButton(
+              shiny::selectInput(
+                inputId=ns("order_bars_by"),
+                label="Order bars by",
+                choices=c(
+                  "cell type" = "cell_type",
+                  "metacell" = "metacell"
+                ),
+                selectize = FALSE
+              ),
+              shiny::sliderInput(
+                inputId=ns("mc_label_size"),
+                label = "Metacell lables size",
+                min = 0, max = 12, step = 1, value = 10
+              ),
+              circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
+              tooltip = tooltipOptions(title = "Click to customize")
+            )
+          )
+        )
+      )
+    )
+  )
+}
+
+#' Server logic for homologos across species
+#' @export
+orthgServer <- function(id, config_file="config.yaml") {
+  shiny::moduleServer(
+    id,
+
+    function(input, output, session) {
+
+      conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
+
+      # load gene annotaitons
+      gene_anns_files <- sapply(sps, function(sp) file.path(
+        conf[['default']]$data_dir,
+        conf[[sp]][['data_subdir']],
+        conf[[sp]][['gene_annot_file']]
+      ))
+      GENE_ANNT <- rbindlist(lapply(gene_anns_files, function(x) {
+        fread_gene_annotation(
+          file = x,
+          select = c(1:3),
+          col.names = c("gene_id","gene name","PFAM domain"),
+          search.column = c("gene_id","gene name","PFAM domain")
+        )
+      }), idcol = "species")
+
+      # load ortholog pairs
+      og_file <- file.path(conf[['default']]$data_dir, conf[['default']]$compara_dir, conf[['default']]$og_file)
+      OGS <- fread(og_file, header=FALSE)
+
+      # map transcripts to genes
+      for (sp in sps) {
+        t2g_sp <- conf[[sp]]$t2g
+        if (!is.null(t2g_sp)) {
+          gtf_fn <- file.path(conf[['default']]$data_dir, conf[[sp]]$data_subdir, t2g_sp)
+          OGS[grep(sp,V1), V1 := dictionary_t2g(gtf_fn = gtf_fn, vector_to_fix = V1)]
+        }
+      }
+      ogs_genes <- c(OGS[[1]],OGS[[2]])
+
+      # load expression data
+      gene_expression_files <- sapply(sps, function(sp) file.path(
+        conf[['default']]$data_dir,
+        conf[[sp]][['data_subdir']],
+        conf[[sp]][['mcfp_file']]
+      ))
+      names(gene_expression_files) <- sps
+      gene_expression_list <- lapply(gene_expression_files, function(gf) {
+        mcfp <- readRDS(gf)
+        mcfp[intersect(rownames(mcfp),ogs_genes),]
+      })
+
+      # load cell type annotation
+      ct_ann_files <- sapply(sps, function(sp) file.path(
+        conf[['default']]$data_dir,
+        conf[[sp]][['data_subdir']],
+        conf[[sp]][['ann_file']]
+      ))
+      names(ct_ann_files) <- sps
+      ct_ann_list <- lapply(ct_ann_files, function(ann_f) {
+        fread(ann_f, header = TRUE, select = 1:3)
+      })
+
+      # select gene
+      updateSelectizeInput(
+        session, "search_id",
+        choices = GENE_ANNT[gene_id %in% ogs_genes, search_id],
+        server = TRUE
+      )
+
+      # get selected gene
+      selected_search_gene <- reactive(GENE_ANNT[search_id==input$search_id]$gene_id)
+
+      # mini table showing gene name and id
+      mini_gene_tab <- reactive(GENE_ANNT[search_id==input$search_id, 1:(ncol(GENE_ANNT)-1)])
+      output$single_gene <- renderTable(mini_gene_tab())
+
+      # orthologs table
+      selected_ogs <- reactive({
+        ogs_dt <- OGS[V1==selected_search_gene() | V2==selected_search_gene()]
+        unique(c(ogs_dt[[1]], ogs_dt[[2]]))
+      })
+      selected_ogs_dt <- reactive({
+        selected_ogs_dt <- data.table(gene_id = selected_ogs())
+        selected_ogs_ann_dt <- merge.data.table(selected_ogs_dt, GENE_ANNT[,1:(ncol(GENE_ANNT)-1)], by="gene_id", all.x = TRUE)
+        selected_ogs_ann_dt[is.na(selected_ogs_ann_dt)] <- ""
+        selected_ogs_ann_dt[species=="", species:=structure(names(sps),names=sps)[str_extract(gene_id,paste(sps,collapse="|"))]]
+        setcolorder(selected_ogs_ann_dt, "species")
+        setorder(selected_ogs_ann_dt, "species")
+        selected_ogs_ann_dt
+      })
+      output$og_genes <- renderTable(selected_ogs_dt())
+
+      # barplot of gene umifrac
+      barplot_list <- reactive(lapply(selected_ogs(), function(sg) {
+        sp <- str_extract(sg, paste(sps, collapse = "|"))
+        sg_plot(
+          nmat=gene_expression_list[[sp]], cttable=ct_ann_list[[sp]],
+          order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
+          gene_id=sg, mdnorm=FALSE, annt=GENE_ANNT, title=TRUE, caption="",
+          legend.position="bottom"
+        )
+      }))
+      output$gene_barplot <- shiny::renderPlot({
+        patchwork::wrap_plots(barplot_list(), ncol = 1)
+      })
+
+      hmh <- reactiveValues()
+      patch_height <- function() {
+        hmh$ng <- length(barplot_list())
+        if (hmh$ng<5) {
+          sf <- 400
+        } else if (hmh$ng<10) {
+          sf <- 300
+        } else {
+          sf <- 200
+        }
+        return(hmh$ng*sf)
+      }
+      output$ui_gene_barplot <- renderUI({
+        ns <- session$ns
+        shiny::plotOutput(ns("gene_barplot"), height = patch_height(), width = "100%")
+      })
+
+    }
+
+  )
+}

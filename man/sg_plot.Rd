@@ -6,7 +6,7 @@
 \usage{
 sg_plot(
   nmat,
-  umat,
+  umat = NULL,
   cttable,
   gene_id,
   gid = NULL,
@@ -15,7 +15,10 @@ sg_plot(
   annt,
   order_by = "metacell",
   ctpalette = NULL,
-  mc_label_size = 9
+  legend.position = "none",
+  mc_label_size = 9,
+  title = FALSE,
+  caption = "Dashed line indicates the maximum observed value."
 )
 }
 \arguments{
