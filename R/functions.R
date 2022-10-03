@@ -4,6 +4,7 @@ require(dplyr)
 require(DT)
 require(data.table)
 require(stringr)
+require(patchwork)
 
 # Exported functions -----------------------------------------------------------
 
