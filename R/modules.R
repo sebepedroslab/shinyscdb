@@ -1451,6 +1451,7 @@ orthgServer <- function(id, config_file="config.yaml") {
         if (!is.null(t2g_sp)) {
           gtf_fn <- file.path(conf[['default']]$data_dir, conf[[sp]]$data_subdir, t2g_sp)
           OGS[grep(sp,V1), V1 := dictionary_t2g(gtf_fn = gtf_fn, vector_to_fix = V1)]
+          OGS[grep(sp,V2), V2 := dictionary_t2g(gtf_fn = gtf_fn, vector_to_fix = V2)]
         }
       }
       ogs_genes <- c(OGS[[1]],OGS[[2]])
