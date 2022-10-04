@@ -354,7 +354,7 @@ sg_barplot  <- function(
     ggplot2::geom_blank(aes(y=1.2*lfp)) +
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
-      x="metacells", y="UMI/10k",
+      x=xlab, y=ylab,
       title=gene_id, fill="cell type"
     ) +
     ggplot2::scale_y_continuous(expand=c(0,0)) +
