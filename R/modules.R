@@ -1393,6 +1393,15 @@ orthgUI <- function(id, label="Homologs") {
             tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
             dropdownButton(
               shiny::selectInput(
+                inputId=ns("plot_what"),
+                label="Values to plot",
+                choices=c(
+                  "UMI fraction" = "umifrac",
+                  "FC" = "fc"
+                ),
+                selectize = FALSE
+              ),
+              shiny::selectInput(
                 inputId=ns("order_bars_by"),
                 label="Order bars by",
                 choices=c(
@@ -1468,6 +1477,18 @@ orthgServer <- function(id, config_file="config.yaml") {
         mcfp[intersect(rownames(mcfp),ogs_genes),]
       })
 
+      # load UMI data
+      gene_umi_files <- sapply(sps, function(sp) file.path(
+        conf[['default']]$data_dir,
+        conf[[sp]][['data_subdir']],
+        conf[[sp]][['umifrac_file']]
+      ))
+      names(gene_umi_files) <- sps
+      gene_umi_list <- lapply(gene_umi_files, function(gf) {
+        umif <- readRDS(gf)
+        umif[intersect(rownames(umif),ogs_genes),]
+      })
+
       # load cell type annotation
       ct_ann_files <- sapply(sps, function(sp) file.path(
         conf[['default']]$data_dir,
@@ -1512,12 +1533,29 @@ orthgServer <- function(id, config_file="config.yaml") {
       # barplot of gene umifrac
       barplot_list <- reactive(lapply(selected_ogs_dt()$gene_id, function(sg) {
         sp <- str_extract(sg, paste(sps, collapse = "|"))
-        sg_plot(
-          nmat=gene_expression_list[[sp]], cttable=ct_ann_list[[sp]],
-          order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
-          gene_id=sg, mdnorm=FALSE, annt=GENE_ANNT, title=TRUE, caption="",
-          legend.position="bottom"
-        )
+        # sg_plot(
+        #   nmat=gene_expression_list[[sp]], umat=gene_umi_list[[sp]], cttable=ct_ann_list[[sp]],
+        #   order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
+        #   gene_id=sg, mdnorm=FALSE, annt=GENE_ANNT, title=TRUE, caption="",
+        #   legend.position="bottom"
+        # )
+        if (input$plot_what=="fc") {
+          sg_barplot(
+            umat=gene_expression_list[[sp]], cttable=ct_ann_list[[sp]],
+            order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
+            gene_id=sg, mult=1, mdnorm=FALSE, annt=GENE_ANNT,
+            title=TRUE, xlab="metacells", ylab="FC",
+            legend.position="bottom"
+          )
+        } else if (input$plot_what=="umifrac") {
+          sg_barplot(
+            umat=gene_umi_list[[sp]], cttable=ct_ann_list[[sp]],
+            order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
+            gene_id=sg, mult=10, mdnorm=FALSE, annt=GENE_ANNT,
+            title=TRUE, xlab="metacells", ylab="UMI/10k",
+            legend.position="bottom"
+          )
+        }
       }))
       output$gene_barplot <- shiny::renderPlot({
         patchwork::wrap_plots(barplot_list(), ncol = 1)

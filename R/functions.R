@@ -292,6 +292,89 @@ sg_plot  <- function(
   }
   return(ggp)
 }
+sg_barplot  <- function(
+    umat, cttable, gene_id, gid=NULL, sid=NULL,
+    mult=1, mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position="none",
+    mc_label_size=9, title=FALSE, xlab="metacells", ylab="FC", caption="Dashed line indicates the maximum observed value."
+){
+
+  ctb <- setDT(copy(cttable))
+  setnames(ctb, c("metacell","cell_type","color"))
+
+  # selected gene umi count
+  gxp <- tryCatch(
+    structure(as.numeric(umat[gene_id,])*mult, names=colnames(umat)),
+    error = function(e) 0
+  )
+  if (mdnorm==TRUE)
+    gxp <- structure(log2(gxp/median(gxp)), names=colnames(umat))
+
+  # all data
+  gdata <- data.table(
+    metacell=colnames(umat),
+    cell_type=ctb[match(colnames(umat),metacell)]$cell_type
+  )
+  gdata[,lfp:=gxp[metacell]]
+
+  # cell type colours
+  if (is.null(ctpalette)) {
+    ctpalette_dt <- unique(ctb[,.(cell_type,color)])
+    ctpalette <- ctpalette_dt$color
+    names(ctpalette) <- ctpalette_dt$cell_type
+  }
+
+  # order
+  if (order_by=="metacell") {
+    order_levels <- as.character(sort(as.integer(ctb$metacell)))
+  } else if (order_by=="cell_type") {
+    # ctb[,cell_type:=factor(cell_type,levels=unique(ctb$cell_type))]
+    setorder(ctb, cell_type)
+    order_levels <- as.character(ctb$metacell)
+  }
+
+  if (all(gdata$metacell %in% order_levels)) {
+    gdata[,metacell:=factor(metacell, levels=order_levels)]
+  } else {
+    warning(sprintf(
+      "Some metacells could not be mapped to levels from annotaion file: %s",
+      paste(gdata$metacell[!gdata$metacell %in% order_levels], collapse = ", ")
+    ))
+    gdata[,metacell := factor(metacell)]
+  }
+  setorder(gdata, metacell)
+
+  # umi frac barplot
+  max_label <- sprintf(" %.2f", max(gxp))
+  pst_x_max <- which( gxp == max(gxp) ) ; pst_x_max <- pst_x_max[1]
+  gp_umi_frac <- ggplot2::ggplot(
+    data=gdata,
+    aes(x=metacell, y=lfp, fill=cell_type)
+  ) +
+    ggplot2::geom_bar(stat="identity") +
+    ggplot2::geom_blank(aes(y=1.2*lfp)) +
+    ggplot2::scale_fill_manual(values=ctpalette) +
+    ggplot2::labs(
+      x="metacells", y="UMI/10k",
+      title=gene_id, fill="cell type"
+    ) +
+    ggplot2::scale_y_continuous(expand=c(0,0)) +
+    ggplot2::geom_hline(yintercept=max(gxp), lty=2) +
+    ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxp), label=max_label, size=5) +
+    ggplot2::theme(
+      legend.position="none",
+      panel.background=element_blank(),
+      axis.line=element_line(colour="black"),
+      axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
+      plot.title=element_text(size=14, face="bold"),
+      axis.ticks.length.x = unit(0, "cm"),
+      text = element_text(size=18)
+    )
+  if (title==TRUE)
+    gp_umi_frac <- gp_umi_frac + labs(title = gene_id)
+
+  # plot
+  return(gp_umi_frac)
+}
 
 #' Plot 2d expression of a gene
 #' @param nmat mc_fp matrix
