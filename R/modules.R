@@ -1243,7 +1243,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         # interactive heatmap
         output$main_heatmap <- renderPlot({
           shiny_env$ht = draw(cor_heatmap())
-          shiny_env$ht_pos = ht_pos_on_device(shiny_env$ht)
+          shiny_env$ht_pos = InteractiveComplexHeatmap:::htPositionsOnDevice(shiny_env$ht)
         }, width = 750, height = 750)
 
         # clicked pair
@@ -1251,9 +1251,9 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
           if (is.null(input$ht_click)) {
             "Not selected."
           } else {
-            pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+            pos1 = InteractiveComplexHeatmap:::get_pos_from_click(input$ht_click)
             ht = shiny_env$ht
-            pos = selectPosition(
+            pos = InteractiveComplexHeatmap:::selectPosition(
               ht, mark = FALSE, pos = pos1,
               verbose = FALSE, ht_pos = shiny_env$ht_pos
             )
@@ -1286,9 +1286,9 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         output$ht_click_table <- DT::renderDataTable({
 
           req(input$ht_click)
-          pos1 = ComplexHeatmap:::get_pos_from_click(input$ht_click)
+          pos1 = InteractiveComplexHeatmap:::get_pos_from_click(input$ht_click)
           ht = shiny_env$ht
-          pos = selectPosition(
+          pos = InteractiveComplexHeatmap::selectPosition(
             ht, mark = FALSE, pos = pos1,
             verbose = FALSE, ht_pos = shiny_env$ht_pos
           )
