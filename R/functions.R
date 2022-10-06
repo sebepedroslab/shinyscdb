@@ -294,7 +294,7 @@ sg_plot  <- function(
 }
 sg_barplot  <- function(
     umat, cttable, gene_id, gid=NULL, sid=NULL,
-    mult=1, mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position=legend.position,
+    mult=1, mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position="none",
     mc_label_size=9, title=FALSE, xlab="metacells", ylab="FC", caption="Dashed line indicates the maximum observed value."
 ){
 
@@ -361,7 +361,7 @@ sg_barplot  <- function(
     ggplot2::geom_hline(yintercept=max(gxp), lty=2) +
     ggplot2::annotate("text", x=pst_x_max, y=1.08*max(gxp), label=max_label, size=5) +
     ggplot2::theme(
-      legend.position="none",
+      legend.position=legend.position,
       panel.background=element_blank(),
       axis.line=element_line(colour="black"),
       axis.text.x=element_text(angle=90, vjust=0.5, hjust=1, size=mc_label_size),
