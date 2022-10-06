@@ -1132,21 +1132,6 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
 
     function(input, output, session) {
 
-      # updateSelectizeInput(
-      #   session, "comparasp1",
-      #   choices = sps, # structure(setdiff(sps,config_id2), names=names(sps)[-match(config_id2,sps)]),
-      #   server = TRUE
-      # )
-      # observeEvent(input$comparasp2, {
-      #   spsf <- structure(setdiff(sps,input$comparasp2), names=names(sps)[-match(input$comparasp2,sps)])
-      #   updateSelectizeInput(session, "comparasp1", choices = spsf, server = TRUE)
-      # })
-      # observeEvent(input$comparasp1, {
-      #   spsf <- structure(setdiff(sps,input$comparasp1), names=names(sps)[-match(input$comparasp1,sps)])
-      #   print(spsf)
-      #   updateSelectizeInput(session, "comparasp2", choices = spsf, server = TRUE)
-      # })
-
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
       COMPARA_DIR <-file.path(
         conf[['default']]$data_dir,
@@ -1228,21 +1213,29 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
         print(sprintf("dim: %s x %s", nrow(CSPS$cor_matrix), ncol(CSPS$cor_matrix)))
 
         # non-interactive heatmap
-        cor_heatmap <- reactive(csps_plot_annotated_matrix(
-          mat = CSPS$cor_matrix,
-          name = CSPS$method,
-          row_annot = ann1, col_annot = ann2,
-          row_cluster = input$row_clust, col_cluster = input$col_clust,
-          row_cluster_method = input$dist_clust, col_cluster_method = input$dist_clust,
-          fontsize = 8
-        ))
-        output$cor_hmap_simple <- shiny::renderPlot({
-          ComplexHeatmap::draw(cor_heatmap())
-        })
+        # cor_heatmap <- reactive(csps_plot_annotated_matrix(
+        #   mat = CSPS$cor_matrix,
+        #   name = CSPS$method,
+        #   row_annot = ann1, col_annot = ann2,
+        #   row_cluster = input$row_clust, col_cluster = input$col_clust,
+        #   row_cluster_method = input$dist_clust, col_cluster_method = input$dist_clust,
+        #   fontsize = 8
+        # ))
+        # output$cor_hmap_simple <- shiny::renderPlot({
+        #   ComplexHeatmap::draw(cor_heatmap())
+        # })
 
         # interactive heatmap
         output$main_heatmap <- renderPlot({
-          shiny_env$ht = draw(cor_heatmap())
+          cor_heatmap <- csps_plot_annotated_matrix(
+            mat = CSPS$cor_matrix,
+            name = CSPS$method,
+            row_annot = ann1, col_annot = ann2,
+            row_cluster = input$row_clust, col_cluster = input$col_clust,
+            row_cluster_method = input$dist_clust, col_cluster_method = input$dist_clust,
+            fontsize = 8
+          )
+          shiny_env$ht = ComplexHeatmap::draw(cor_heatmap)
           shiny_env$ht_pos = InteractiveComplexHeatmap:::htPositionsOnDevice(shiny_env$ht)
         }, width = 750, height = 750)
 

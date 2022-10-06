@@ -1869,6 +1869,6 @@ csps_plot_annotated_matrix = function(
   )
 
   # return heatmap object
-  return(hm)
+  ComplexHeatmap::draw(hm)
 
 }
