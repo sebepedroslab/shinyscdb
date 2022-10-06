@@ -294,7 +294,7 @@ sg_plot  <- function(
 }
 sg_barplot  <- function(
     umat, cttable, gene_id, gid=NULL, sid=NULL,
-    mult=1, mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position="none",
+    mult=1, mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position=legend.position,
     mc_label_size=9, title=FALSE, xlab="metacells", ylab="FC", caption="Dashed line indicates the maximum observed value."
 ){
 
