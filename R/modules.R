@@ -1248,7 +1248,8 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
             ht = shiny_env$ht
             pos = InteractiveComplexHeatmap:::selectPosition(
               ht, mark = FALSE, pos = pos1,
-              verbose = FALSE, ht_pos = shiny_env$ht_pos
+              verbose = FALSE, ht_pos = shiny_env$ht_pos,
+              calibrate = FALSE
             )
             if (!is.null(pos)) {
               row_index = pos[1, "row_index"]
@@ -1283,7 +1284,8 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
           ht = shiny_env$ht
           pos = InteractiveComplexHeatmap::selectPosition(
             ht, mark = FALSE, pos = pos1,
-            verbose = FALSE, ht_pos = shiny_env$ht_pos
+            verbose = FALSE, ht_pos = shiny_env$ht_pos,
+            calibrate = FALSE
           )
           if (!is.null(pos)) {
             row_index = pos[1, "row_index"]

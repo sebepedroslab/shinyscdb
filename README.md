@@ -1,6 +1,6 @@
-This package contains functions for database shiny apps, including single species metacell atlases and comparative anlyisis between pairs of species.
+This package contains functions for single-cell atlas database shiny apps, including single species metacell atlases and comparative anlyisis between pairs of species.
 
-To use these functions, the app also needs `config.yaml` in which input files are specified, and `global.R` defining global variables such as list of species (note that the species acronyms should match those used in config file):
+To use these functions, each app needs to have `config.yaml` in which input files are specified, and `global.R` (example below), with libraries and global variables, including list of species (the species acronyms should match those used in config file).
 
 ```
 # packages
@@ -25,16 +25,15 @@ library(kableExtra)
 library(ComplexHeatmap)
 library(circlize)
 library(scales)
-library(egg)
+library(patchwork)
+library(rtracklayer)
 library(shinyscdb)
 library(shinycssloaders)
 
-# Input data ------------------------------------------------------------------
-
-# read config file
+# config file
 conf <- yaml::yaml.load_file("config.yaml", eval.expr=TRUE)
 
-# species
+# species dictionary with '"full name" = acronym' pairs
 sps <- c(
   "Hoilungia hongkongensis" = "Hhon",
   "Trichoplax adhaerens" = "Tadh",
@@ -44,6 +43,7 @@ sps <- c(
 # graphical params
 heatmap_colors <- c("white","gray99","orange","orangered2","#520c52")
 
-# interactive heatmap
+# env interactive heatmap
 shiny_env = new.env()
 ```
+
