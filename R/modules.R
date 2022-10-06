@@ -1244,6 +1244,7 @@ comparaServer <- function(id, config_file="config.yaml", config_id1, config_id2)
           if (is.null(input$ht_click)) {
             "Not selected."
           } else {
+            pdf(file = NULL)
             pos1 = InteractiveComplexHeatmap:::get_pos_from_click(input$ht_click)
             ht = shiny_env$ht
             pos = InteractiveComplexHeatmap:::selectPosition(
