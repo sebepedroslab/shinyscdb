@@ -1398,8 +1398,8 @@ orthgUI <- function(id, label="Homologs") {
                 inputId=ns("order_bars_by"),
                 label="Order bars by",
                 choices=c(
-                  "cell type" = "cell_type",
-                  "metacell" = "metacell"
+                  "metacell" = "metacell",
+                  "cell type" = "cell_type"
                 ),
                 selectize = FALSE
               ),
