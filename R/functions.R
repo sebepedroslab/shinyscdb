@@ -166,7 +166,7 @@ dictionary_t2g = function(gtf_fn, vector_to_fix, t2g = TRUE, transcript_field = 
 sg_plot  <- function(
   nmat, umat=NULL, cttable, gene_id, gid=NULL, sid=NULL,
   mdnorm=FALSE, annt, order_by="metacell", ctpalette=NULL, legend.position="none",
-  mc_label_size=9, title=FALSE, caption="Dashed line indicates the maximum observed value."
+  mc_label_size=9, title=FALSE, caption=""
 ){
 
   ctb <- setDT(copy(cttable))
