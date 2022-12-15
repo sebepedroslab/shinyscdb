@@ -268,7 +268,7 @@ sg_plot  <- function(
     ggplot2::geom_blank(aes(y=1.2*lfc)) +
     ggplot2::scale_fill_manual(values=ctpalette) +
     ggplot2::labs(
-      x="metacells", y="FC", fill="cell type", caption=caption
+      x="metacells", y="expression fold change (FC)", fill="cell type", caption=caption
     ) +
     ggplot2::geom_hline(yintercept=max(gxl), lty=2) +
     ggplot2::scale_y_continuous(expand=c(0,0)) +

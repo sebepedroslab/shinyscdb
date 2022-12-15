@@ -1,3 +1,40 @@
+#' User interface for atlas instructions
+#' @export
+atlasIntroUI <- function(id, label="Instructions") {
+  ns <- NS(id)
+  shiny::tagList(
+    shiny::fluidRow(
+      shinydashboard::box(
+        width = 12, solidHeader=FALSE,
+        h4("Cell atlases"),
+        HTML("This section allows the exploration of the datasets in a species-focused manner and from different perspectives.<br>"),
+        br(),
+        HTML("First, select your species of interest and click on <code>Generate cell atlas</code>.<br>"),
+        br(),
+        HTML("Then you can explore four pages:<br>"),
+        br(),
+        HTML("<strong>Overview</strong> – metacells and single-cells 2D projection, cell type labels, and metacell heatmap showing expression of highly variable genes. Here you can download the metacell regularized gene expression matrix and the raw single-cell UMI counts matrix.<br>"),
+        shiny::br(),
+        HTML("<strong>Single gene query</strong> – select your gene of interest by geneID or launch a BLAST search with your protein of interest (you need to select the hit of interest, if any).<br>"),
+        shiny::br(),
+        HTML("<strong>Multiple genes query</strong> – this allows the visualization of multiple genes at once. You can search genes by name or by Pfam domain (e.g. “Myosin_head/” will retrieve you all the genes with a myosin domain) and you can also upload a list of interest. We also provide predefined lists of genes for different families/sets of function (e.g. cell adhesion, GPCRs, transcription factors),<br>"),
+        shiny::br(),
+        HTML("<strong>Cell type markers</strong> – first you need to select one or more metacells or a cell type of interest. Then, you need to select an expression threshold for marker selection. Optionally, you can request that the gene is expressed in all other metacells below a certain threshold (in each of them – absolute – or as a median value).<br>"),
+        HTML("This generates a table of the top marker genes fulfilling the selected criteria. You can sort them using different metrics and also specifically select transcription factors. This table can be downloaded.<br>"),
+        shiny::br()
+      )
+    )
+  )
+}
+
+#' Server logic for atlas instructions
+#' @export
+atlasIntroServer <- function(id, config_file="config.yaml", config_id) {
+  shiny::moduleServer(
+    id
+  )
+}
+
 #' User interface for atlas introduction
 #' @export
 introUI <- function(id, label="Intro") {
@@ -29,13 +66,13 @@ introUI <- function(id, label="Intro") {
           tableOutput(ns("cell_annot_table")),
           type = 8, color = "lightgrey", size = 0.5, hide.ui = TRUE
         ),
-        downloadButton(ns("download_cell_ann"),"Download annotation")
+        downloadButton(ns("download_cell_ann"),"Download cell type annotation")
       )
     ),
     shiny::fluidRow(
       shinydashboard::box(
         title="Gene expression", width = 12, height = 3200, solidHeader=FALSE,
-        downloadButton(ns("download_mc"),"Download metacell FC table"),
+        downloadButton(ns("download_mc"),"Download metacell expression table"),
         downloadButton(ns("download_sc"),"Download single cell counts table"),
         br(),
         shiny::h5(
@@ -543,7 +580,7 @@ multiGeneUI <- function(id, label="Multi gene expression") {
         ), br(),
         radioButtons(
           ns("geneselecttype"), label = "Choose genes",
-          choices = list("search for genes" = "search",  "upload list of genes" = "upload"),
+          choices = list("search for genes" = "search", "select gene list" = "set", "upload list of genes" = "upload"),
           selected = "search"
         ),
         conditionalPanel(
@@ -555,6 +592,15 @@ multiGeneUI <- function(id, label="Multi gene expression") {
             btnSearch = icon("search"),
             btnReset = icon("remove"),
             width = "50%"
+          )
+        ),
+        conditionalPanel(
+          condition = "input.geneselecttype == 'set'", ns = ns,
+          shiny::selectInput(
+            inputId=ns("gene_set"),
+            label="Select gene set",
+            choices=NULL,
+            selectize = TRUE
           )
         ),
         conditionalPanel(
@@ -637,7 +683,20 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       mc_fp <- conf[[config_id]]$mcfp_file
       cell_type_annotation <- conf[[config_id]]$ann_file
       gene_annotation <-  conf[[config_id]]$gene_annot_file
-
+      gene_lists_dir <- conf[[config_id]]$genelists_dir
+      gl_files <- list.files(file.path(INPUT_DIR, gene_lists_dir), full.names = TRUE)
+      gl_names <- str_extract(basename(gl_files), "[A-z]+(?<=.)")
+      names(gl_files) <- gl_names
+      names(gl_names) <- str_to_sentence(str_replace_all(gl_names,"_"," "))
+      names(gl_names) <- str_replace_all(
+        names(gl_names),
+        c("Gpcr"="GPCR","Rna"="RNA","Dna"="DNA")
+      )
+      updateSelectizeInput(
+        session, "gene_set",
+        choices = gl_names,
+        server = TRUE
+      )
       MCFP <- readRDS(file = file.path(INPUT_DIR, mc_fp))
       CELL_ANNT <- fread_cell_annotation(file = file.path(INPUT_DIR, cell_type_annotation))
       ALL_GENES <- rownames(MCFP)
@@ -652,6 +711,10 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       genes_dt <- reactive(
         if (input$geneselecttype=="search") {
           genes_select_dt(sterm=input$free_genes,nmat=MCFP,annt=GENE_ANNT)
+        } else if (input$geneselecttype=="set") {
+          gl_dt <- fread(gl_files[input$gene_set],header=FALSE)
+          setnames(gl_dt,c("gene_id","gene name","PFAM domain"))
+          gl_dt
         } else if (input$geneselecttype=="upload") {
           req(input$genefile)
           gs <- fread(input$genefile$datapath,header=FALSE)[[1]]
@@ -770,14 +833,12 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
     shiny::fluidRow(
       shinydashboard::box(
         title="1. Metacells selection", width=4, solidHeader = TRUE,
-        shiny::h5("Find genes that are specifically expressed in a group of metacells."),
-        shiny::h5("It's possible to select metacells in two ways: either by
-               inputing individual metacells IDs (select 'Input'), or by
-               selecting all metacells annotated as a cell type (select 'Annotation')."),
+        shiny::h5("Find genes that are specifically expressed in a group of cells."),
+        shiny::h5("It's possible to select one or more metacells, or individual cell types."),
         br(),
         radioButtons(
-          ns("mcselecttype"), label = "Choose metacells from:",
-          choices = list("Input" = "input",  "Annotation" = "file"),
+          ns("mcselecttype"), label = "Group cells by:",
+          choices = list("Metacells" = "input",  "Cell types" = "file"),
           selected = "input"
         ),
         conditionalPanel(
@@ -797,7 +858,7 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
         conditionalPanel(
           condition = "input.mcselecttype == 'file'", ns=ns,
           shiny::h5("Select a cell type from existing annotations or upload your own annotation file."),
-          materialSwitch(ns("uploadann"),"Upload annotation file",value=FALSE),
+          materialSwitch(ns("uploadann"),"Upload custom metacell-cell type annotation file",value=FALSE),
           conditionalPanel(
             condition = "input.uploadann", ns=ns,
             shiny::h5("Upload a tab-separated text file with the following columns: metacell, cell type, color"),
@@ -1025,6 +1086,34 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
     }
   )
 
+}
+
+#' User interface for comparative instructions
+#' @export
+comparaIntroUI <- function(id, label="Instructions") {
+  ns <- NS(id)
+  shiny::tagList(
+    shiny::fluidRow(
+      shinydashboard::box(
+        width = 12, solidHeader=FALSE,
+        h4("7. Species comparisons"),
+        HTML("This sections allows the systematic comparison of cell type transcriptomes across species and from two perspectives.<br>"),
+        br(),
+        HTML("<strong>Pairwise comparison</strong> – select a pair of species and then click on <code>Compare species</code>. Then, you can select different parameters for the comparison and interactively explore the comparative heatmap to retrieve lists of genes shared between a pair of cell types.<br>"),
+        shiny::br(),
+        HTML("<strong>Ortholog comparison</strong> – select a gene ID for any of the species and you can visualize the expression of the orthologs in all four placozoan species (if there are any).<br>"),
+        shiny::br()
+      )
+    )
+  )
+}
+
+#' Server logic for comparative instructions
+#' @export
+comparaIntroServer <- function(id, config_file="config.yaml", config_id) {
+  shiny::moduleServer(
+    id
+  )
 }
 
 #' User interface for cross species comparison

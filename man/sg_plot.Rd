@@ -18,7 +18,7 @@ sg_plot(
   legend.position = "none",
   mc_label_size = 9,
   title = FALSE,
-  caption = "Dashed line indicates the maximum observed value."
+  caption = ""
 )
 }
 \arguments{
