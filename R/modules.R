@@ -9,7 +9,7 @@ atlasIntroUI <- function(id, label="Instructions") {
         h4("Cell atlases"),
         HTML("This section allows the exploration of the datasets in a species-focused manner and from different perspectives.<br>"),
         br(),
-        HTML("First, select your species of interest and click on <code>Generate cell atlas</code>.<br>"),
+        HTML("First, select your dataset of interest and click on <code>Generate cell atlas</code>.<br>"),
         br(),
         HTML("Then you can explore four pages:<br>"),
         br(),
@@ -690,7 +690,7 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
       names(gl_names) <- str_to_sentence(str_replace_all(gl_names,"_"," "))
       names(gl_names) <- str_replace_all(
         names(gl_names),
-        c("Gpcr"="GPCR","Rna"="RNA","Dna"="DNA")
+        c("Gpcr"="GPCR","Rna"="RNA","Dna"="DNA", "Lineagemarkers"="Lineage")
       )
       updateSelectizeInput(
         session, "gene_set",
@@ -713,7 +713,11 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
           genes_select_dt(sterm=input$free_genes,nmat=MCFP,annt=GENE_ANNT)
         } else if (input$geneselecttype=="set") {
           gl_dt <- fread(gl_files[input$gene_set],header=FALSE)
-          setnames(gl_dt,c("gene_id","gene name","PFAM domain"))
+          colnames <- c("gene_id","gene name","PFAM domain")
+          if (input$gene_set == "lineagemarkers") {
+            colnames <- c("gene_id","gene name","Lineage")
+          }
+          setnames(gl_dt, colnames)
           gl_dt
         } else if (input$geneselecttype=="upload") {
           req(input$genefile)
