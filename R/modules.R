@@ -54,7 +54,7 @@ introUI <- function(id, label="Intro") {
             inputId = ns("plot_2d_customize"),
             label = "Show",
             choices = c("Cells", "Metacells", "Labels", "Links"),
-            selected = c("Cells", "Metacells", "Labels")
+            selected = c("Cells", "Metacells")
           ),
           circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
@@ -288,7 +288,7 @@ singleGeneUI <- function(id, label="Single gene expression") {
             inputId = ns("plot_2d_customize"),
             label = "Show",
             choices = c("Cells", "Metacells", "Labels", "Links"),
-            selected = c("Cells", "Metacells", "Labels")
+            selected = c("Cells", "Metacells")
           ),
           circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
           tooltip = tooltipOptions(title = "Click to customize")
@@ -304,28 +304,44 @@ singleGeneUI <- function(id, label="Single gene expression") {
     ),
     shiny::fluidRow(
       shinydashboard::box(
-        title="", width=12, height = 900, solidHeader=TRUE,
+        title = "", width = 12, height = 1000, solidHeader = TRUE,
+        shiny::fluidRow(
+          style = "height:300px",
+          shiny::column(
+            width = 12,
+            withSpinner(
+              shiny::plotOutput(ns("gene_barplot_1"), height = 300),
+              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            )
+          )
+        ),
+        shiny::fluidRow(
+          style = "height:500px",
+          shiny::column(
+            width = 12,
+            withSpinner(
+              shiny::plotOutput(ns("gene_barplot_2"), height = 500),
+              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
+            )
+          )
+        ),
         shiny::fluidRow(
           shiny::column(
-            width=12,
-            withSpinner(
-              shiny::plotOutput(ns("gene_barplot"), height = 700),
-              type = 8, color = "lightgrey", size = 0.5, hide.ui = FALSE
-            ),
+            width = 12,
             tags$style(".btn-custom {background-color: #b8b8b8; color: #FFF;}"),
             dropdownButton(
               shiny::selectInput(
-                inputId=ns("order_bars_by"),
-                label="Order bars by",
-                choices=c(
+                inputId = ns("order_bars_by"),
+                label = "Order bars by",
+                choices = c(
                   "cell type" = "cell_type",
                   "metacell" = "metacell"
                 ),
                 selectize = FALSE
               ),
               shiny::sliderInput(
-                inputId=ns("mc_label_size"),
-                label = "Metacell lables size",
+                inputId = ns("mc_label_size"),
+                label = "Metacell labels size",
                 min = 0, max = 12, step = 1, value = 10
               ),
               circle = TRUE, status = "custom", icon = icon("gear"), width = "300px",
@@ -434,50 +450,6 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
         clicked = input$blastResults_rows_selected
         parsedresults()[clicked,2]
       })
-      # output$clicked <- renderTable({
-      #   if (is.null(blastresults())){}
-      #   else{
-      #     xmltop = xmlRoot(blastresults())
-      #     clicked = input$blastResults_rows_selected
-      #     tableout<- data.frame(parsedresults()[clicked,])
-      #
-      #     if (nrow(tableout)==5) {
-      #       tableout <- t(tableout)
-      #       names(tableout) <- c("")
-      #       rownames(tableout) <- c("Query ID","Hit ID", "Length", "Bit Score", "e-value")
-      #       colnames(tableout) <- NULL
-      #       data.frame(tableout)
-      #     } else {NULL}
-      #   }
-      # },rownames =TRUE,colnames =FALSE)
-      #
-      # # alignments for clicked rows
-      # output$alignment <- renderText({
-      #   if (is.null(blastresults())){}
-      #   else{
-      #     xmltop = xmlRoot(blastresults())
-      #
-      #     clicked = input$blastResults_rows_selected
-      #
-      #     #loop over the xml to get the alignments
-      #     align <- xpathApply(blastresults(), '//Iteration',function(row){
-      #       top <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_qseq') %>% sapply(., xmlValue)
-      #       mid <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_midline') %>% sapply(., xmlValue)
-      #       bottom <- getNodeSet(row, 'Iteration_hits//Hit//Hit_hsps//Hsp//Hsp_hseq') %>% sapply(., xmlValue)
-      #       rbind(top,mid,bottom)
-      #     })
-      #
-      #     #split the alignments every 40 carachters to get a "wrapped look"
-      #     alignx <- do.call("cbind", align)
-      #     splits <- strsplit(gsub("(.{40})", "\\1,", alignx[1:3,clicked]),",")
-      #
-      #     #paste them together with returns '\n' on the breaks
-      #     split_out <- lapply(1:length(splits[[1]]),function(i){
-      #       rbind(paste0("Q-",splits[[1]][i],"\n"),paste0("M-",splits[[2]][i],"\n"),paste0("H-",splits[[3]][i],"\n"))
-      #     })
-      #     unlist(split_out)
-      #   }
-      # })
 
       # Select genes
       updateSelectizeInput(
@@ -509,16 +481,16 @@ singleGeneServer <- function(id,  config_file="config.yaml", config_id) {
 
       # barplot of gene umifrac
       cttable = as.data.frame(CELL_ANNT)[,1:3]
-      output$gene_barplot <- shiny::renderPlot({
+      gene_barplots <- reactive({
         print(sprintf("Selected search gene: %s",selected_search_gene()))
         sg_plot(
           nmat=MCFP, umat=UMIFRAC, cttable=cttable, order_by=input$order_bars_by,
           gene_id=selected_search_gene(), mdnorm=FALSE, annt=GENE_ANNT,
           mc_label_size=input$mc_label_size, legend.position = "bottom"
         )
-      },
-      height = 600
-      )
+      })
+      output$gene_barplot_1 <- shiny::renderPlot(gene_barplots()[[1]], height = 300)
+      output$gene_barplot_2 <- shiny::renderPlot(gene_barplots()[[2]], height = 500)
 
       # 2d projection
       output$gene_2d <- shiny::renderPlot(
@@ -843,7 +815,7 @@ summaryUI <- function(id, config_file="config.yaml", label="Metacell summary") {
         radioButtons(
           ns("mcselecttype"), label = "Group cells by:",
           choices = list("Metacells" = "input",  "Cell types" = "file"),
-          selected = "input"
+          selected = "file"
         ),
         conditionalPanel(
           condition = "input.mcselecttype == 'input'", ns=ns,

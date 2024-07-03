@@ -6,6 +6,7 @@ require(data.table)
 require(stringr)
 require(patchwork)
 require(rtracklayer)
+require(gplots)
 
 # Exported functions -----------------------------------------------------------
 
@@ -102,21 +103,25 @@ red_mc_vector <- function(x,range_sep=":") {
 summarize_cell_annotation <- function(annt) {
 
   setDT(annt)
-  setorderv(annt,colnames(annt)[1])
-  tanns <- tapply(annt[[1]], annt[[2]], red_mc_vector)
-
-  dt <- data.table(
-    'cell type' = unique(annt[[2]]),
-    metacells = tanns[unique(annt[[2]])],
-    cols = annt[[3]][match(unique(annt[[2]]),annt[[2]])]
-  )
+  if (all(is.integer(annt[[2]]))) {
+    setorderv(annt,colnames(annt)[1])
+    tanns <- tapply(annt[[1]], annt[[2]], red_mc_vector)
+    dt <- data.table(
+      'cell type' = unique(annt[[2]]),
+      metacells = tanns[unique(annt[[2]])],
+      cols = annt[[3]][match(unique(annt[[2]]),annt[[2]])]
+    )
+  } else {
+    dt <- copy(annt)[,c(2:1,3)]
+    setnames(dt, c("metacells", "cell type", "cols"))
+  }
   dt[, colshex := col2hex(cols)]
   dt[, lightness := ligt_or_dark(cols), 1:nrow(dt)]
   dt[, metacells := cell_spec(
-      metacells, "html",
-      color = ifelse(dt$lightness == "dark", "white", "black"),
-      align = "c",
-      background = factor(`cell type`, dt$`cell type`, dt$colshex)
+    metacells, "html",
+    color = ifelse(dt$lightness == "dark", "white", "black"),
+    align = "c",
+    background = factor(`cell type`, dt$`cell type`, dt$colshex)
   )]
   dtt <- dt[,c("cell type","metacells")]
   knitr::kable(dtt, escape = FALSE, align = "c") %>%
@@ -286,9 +291,9 @@ sg_plot  <- function(
 
   # plot
   if (!is.null(umat)) {
-    ggp <- gp_umi_frac / gp_logfc
+    ggp <- list(gp_umi_frac , gp_logfc)
   } else {
-    ggp <- gp_logfc
+    ggp <- list(gp_logfc)
   }
   return(ggp)
 }
