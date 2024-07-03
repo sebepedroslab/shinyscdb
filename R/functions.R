@@ -113,7 +113,7 @@ summarize_cell_annotation <- function(annt) {
     )
   } else {
     dt <- copy(annt)[,c(2:1,3)]
-    setnames(dt, c("metacells", "cell type", "cols"))
+    setnames(dt, c("cell type", "metacells", "cols"))
   }
   dt[, colshex := col2hex(cols)]
   dt[, lightness := ligt_or_dark(cols), 1:nrow(dt)]
