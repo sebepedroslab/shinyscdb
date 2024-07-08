@@ -1039,11 +1039,11 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
       # })
       output$download_subset_table <- downloadHandler(
         filename <- function(){
-          mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
+          #mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
           fcn <- paste0("fc",input$fc_selection)
           if (input$fcbg==TRUE)
             fcn <- paste0(fcn,"_fcbg",input$fcbg_selection)
-          sprintf("mc_summary_%s_%s_selected_genes.tsv",mc_ids_names,fcn)
+          sprintf("mc_summary_%s_selected_genes.tsv",fcn)
         },
         content <- function(file){
           write.table(
@@ -1056,11 +1056,11 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
       # download full table
       output$download_table <- downloadHandler(
         filename <- function(){
-          mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
+          #mc_ids_names <- red_mc_vector(selected_mcs(),range_sep="-")
           fcn <- paste0("fc",input$fc_selection)
           if (input$fcbg==TRUE)
             fcn <- paste0(fcn,"_fcbg",input$fcbg_selection)
-          sprintf("mc_summary_%s_%s.tsv",mc_ids_names,fcn)
+          sprintf("mc_summary_%s.tsv",fcn)
         },
         content <- function(file){
           write.table(
