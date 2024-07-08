@@ -735,16 +735,24 @@ mgenes_hmap <- function(
   scale_expression_fc = 4, # trim expression values, i.e. set anything > scale_expression_fc to this value
   heatmap_colors = c("white","gray99","orange","orangered2","#520c52"),
   ct_table, cell_type_palette = NULL, cluster_genes = TRUE,
-  gene_font_size = 12,mcid_font_size = 12, mc_annotaion_height = unit(2, "mm")
+  gene_annotation_column = 2,
+  gene_font_size = 12, mcid_font_size = 12, mc_annotaion_height = unit(2, "mm")
 ){
 
   # selected genes
   message("Selected genes: ",length(gids))
   gs <- intersect(gids,rownames(nmat))
   rid <- match(gs, annt[[1]])
-  gns <- annt[rid][[2]]
+  if (class(gene_annotation_column) == "character") {
+    gene_annotation_column_num <- match(gene_annotation_column, colnames(annt))
+  } else if (class(gene_annotation_column) == "integer") {
+    gene_annotation_column_num <- gene_annotation_column
+  }
+  gns <- annt[rid][[gene_annotation_column_num]]
   badgns <- gns=="" | is.na(gns)
   gns[badgns] <- gs[badgns]
+  longgns <- nchar(gns)>30
+  gns[longgns] <- paste(substr(gns[longgns], 1, 27), "...")
   row_labels <- gns
   names(row_labels) <- gs
 
@@ -815,7 +823,9 @@ mgenes_hmap <- function(
   message("Gene annotations")
   gs <- rownames(hm)
   annid <- match(gs,annt[[1]])
-  ganns <- annt[annid][[3]]
+
+  message("Using column ", gene_annotation_column_num, " (", gene_annotation_column, ")")
+  ganns <- annt[annid][[gene_annotation_column_num]]
   ganns[is.na(ganns)] <- ""
   ganns_tr <- unlist(lapply(ganns, function(x){
     if(nchar(x)>30) {

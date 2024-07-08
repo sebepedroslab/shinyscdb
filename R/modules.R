@@ -612,6 +612,10 @@ multiGeneUI <- function(id, label="Multi gene expression") {
             inputId = ns("scale_expression_fc"), label="Scale to max FC value:",
             min=1, max=5, step=0.1, round=FALSE, value=5, width = "100%"
           ),
+          selectInput(
+            inputId = ns("gene_annotation_column"), label="Annotation for the genes",
+            choices=NULL, selectize = TRUE, width = "100%"
+          ),
           sliderInput(
             inputId=ns("mcid_font_size"),
             label = "Metacell lables size",
@@ -677,6 +681,11 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
         select = c(1:3),
         col.names = c("gene_id","gene name","PFAM domain"),
         search.column = c("gene_id","gene name","PFAM domain")
+      )
+      updateSelectizeInput(
+        session, "gene_annotation_column",
+        choices = c("gene name","PFAM domain"),
+        server = TRUE
       )
 
       # Select genes
@@ -756,6 +765,7 @@ multiGeneServer <- function(id, config_file="config.yaml", config_id) {
           cluster_genes=input$clustergenes,
           heatmap_colors=heatmap_colors,
           ct_table=CELL_ANNT,
+          gene_annotation_column=input$gene_annotation_column,
           mcid_font_size=input$mcid_font_size,
           gene_font_size=input$gene_font_size
         ), error = function(e) message("Select at least two genes!"))
