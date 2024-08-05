@@ -986,14 +986,33 @@ summaryServer <- function(id, config_file="config.yaml", config_id) {
           smcs <- unlist(lapply(input_text, function(text_string) {
             if (grepl("-",text_string)) {
               input_range = strsplit(text_string, "-")[[1]]
-              print(input_range)
-              seq(
-                from = as.integer(stringr::str_remove_all(input_range[1], " ")),
-                to = as.integer(stringr::str_remove_all(input_range[2], " ")),
+              mc_prefix = stringr::str_remove(input_range[1], "\\d+$")
+              mc_from = stringr::str_extract(
+                stringr::str_remove_all(input_range[1], " "), "\\d+"
+              )
+              mc_to = stringr::str_extract(
+                stringr::str_remove_all(input_range[2], " "), "\\d+"
+              )
+              mc_nums <- seq(
+                from = as.integer(mc_from),
+                to = as.integer(mc_to),
                 by = 1
               )
+            if (mc_prefix != "") {
+                mc_nums <- sprintf(
+                  paste0("%s%0", nchar(mc_from), "d"), mc_prefix, mc_nums
+                )
+              } else {
+                mc_nums
+              }
             } else {
-              as.integer(stringr::str_remove_all(text_string, " "))
+              mc_str <- stringr::str_remove_all(text_string, " ")
+              mc_int <- as.integer(mc_str)
+              if (!is.na(mc_int)) {
+                mc_int
+              } else {
+                mc_str
+              }
             }
           }))
           # check that they are valid mcs
