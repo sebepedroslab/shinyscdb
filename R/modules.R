@@ -1517,13 +1517,17 @@ orthgUI <- function(id, label="Homologs") {
 
 #' Server logic for homologos across species
 #' @export
-orthgServer <- function(id, config_file="config.yaml") {
+orthgServer <- function(id, config_file="config.yaml", sps = NULL) {
   shiny::moduleServer(
     id,
 
     function(input, output, session) {
 
       conf <- yaml::yaml.load_file(config_file, eval.expr=TRUE)
+
+      if (is.null(sps)) {
+        sps = setdiff(names(conf), "default")
+      }
 
       # load gene annotaitons
       gene_anns_files <- sapply(sps, function(sp) file.path(
@@ -1623,12 +1627,6 @@ orthgServer <- function(id, config_file="config.yaml") {
       # barplot of gene umifrac
       barplot_list <- reactive(lapply(selected_ogs_dt()$gene_id, function(sg) {
         sp <- str_extract(sg, paste(sps, collapse = "|"))
-        # sg_plot(
-        #   nmat=gene_expression_list[[sp]], umat=gene_umi_list[[sp]], cttable=ct_ann_list[[sp]],
-        #   order_by=input$order_bars_by, mc_label_size=input$mc_label_size,
-        #   gene_id=sg, mdnorm=FALSE, annt=GENE_ANNT, title=TRUE, caption="",
-        #   legend.position="bottom"
-        # )
         if (input$plot_what=="fc") {
           sg_barplot(
             umat=gene_expression_list[[sp]], cttable=ct_ann_list[[sp]],

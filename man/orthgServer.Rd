@@ -4,7 +4,7 @@
 \alias{orthgServer}
 \title{Server logic for homologos across species}
 \usage{
-orthgServer(id, config_file = "config.yaml")
+orthgServer(id, config_file = "config.yaml", sps = NULL)
 }
 \description{
 Server logic for homologos across species

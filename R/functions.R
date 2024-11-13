@@ -330,7 +330,7 @@ sg_barplot  <- function(
 
   # order
   if (order_by=="metacell") {
-    order_levels <- as.character(sort(as.integer(ctb$metacell)))
+    order_levels <- as.character(ctb$metacell)
   } else if (order_by=="cell_type") {
     # ctb[,cell_type:=factor(cell_type,levels=unique(ctb$cell_type))]
     setorder(ctb, cell_type)
